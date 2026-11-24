@@ -1,0 +1,7 @@
+*.blend1
+__pycache__/
+.DS_Store
+.venv/
+reference/scans/raw/
+blend/*.blend
+renders/*/

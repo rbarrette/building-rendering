@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inventory.schema.json",
+  "title": "inventory.json",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "confidence": {
+      "enum": [
+        "measured",
+        "scanned",
+        "spec",
+        "estimated"
+      ]
+    },
+    "dim": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "clr": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ref_file": {
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "repo-relative, under reference/items/<id>/"
+        },
+        "url": {
+          "type": "string",
+          "description": "where it was downloaded from"
+        },
+        "view": {
+          "type": "string",
+          "description": "images: front|side|back|top|dims|detail|in-use; textures: the part it covers"
+        },
+        "kind": {
+          "type": "string",
+          "description": "textures: photo-crop|swatch|tileable|color-only"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "meta": {
+      "type": "object"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "w",
+          "d",
+          "h"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "w": {
+            "$ref": "#/$defs/dim"
+          },
+          "d": {
+            "$ref": "#/$defs/dim"
+          },
+          "h": {
+            "$ref": "#/$defs/dim"
+          },
+          "clearance": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "front": {
+                "$ref": "#/$defs/clr"
+              },
+              "sides": {
+                "$ref": "#/$defs/clr"
+              },
+              "back": {
+                "$ref": "#/$defs/clr"
+              },
+              "top": {
+                "$ref": "#/$defs/clr"
+              }
+            }
+          },
+          "movable": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "mount": {
+            "enum": [
+              "floor",
+              "wall"
+            ]
+          },
+          "folded": {
+            "type": "object",
+            "required": [
+              "w",
+              "d",
+              "h"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "w": {
+                "$ref": "#/$defs/dim"
+              },
+              "d": {
+                "$ref": "#/$defs/dim"
+              },
+              "h": {
+                "$ref": "#/$defs/dim"
+              },
+              "clearance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "front": {
+                    "$ref": "#/$defs/clr"
+                  },
+                  "sides": {
+                    "$ref": "#/$defs/clr"
+                  },
+                  "back": {
+                    "$ref": "#/$defs/clr"
+                  },
+                  "top": {
+                    "$ref": "#/$defs/clr"
+                  }
+                }
+              },
+              "confidence": {
+                "$ref": "#/$defs/confidence"
+              },
+              "source": {
+                "type": "string"
+              }
+            }
+          },
+          "access": {
+            "enum": [
+              "front",
+              "back",
+              "left",
+              "right"
+            ]
+          },
+          "refs": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "product_url": {
+                "type": "string"
+              },
+              "manual_url": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "string",
+                "description": "reference/items/<id>/notes.md (research log + interview)"
+              },
+              "spec_sheet": {
+                "$ref": "#/$defs/ref_file"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ref_file"
+                }
+              },
+              "textures": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ref_file"
+                }
+              }
+            }
+          },
+          "appearance": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "finish": {
+                "type": "string"
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "part"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "part": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    },
+                    "hex": {
+                      "type": "string",
+                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                    },
+                    "material": {
+                      "type": "string"
+                    },
+                    "texture": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "specs": {
+            "type": "object",
+            "description": "free-form extra facts: weight_lb, power, max_load_lb, assembled vs boxed, etc."
+          },
+          "owned": {
+            "enum": [
+              "owned",
+              "ordered",
+              "planned",
+              "considering"
+            ]
+          },
+          "asset": {
+            "type": "object",
+            "required": [
+              "path",
+              "source",
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "repo-relative path under assets/items/<id>/"
+              },
+              "source": {
+                "enum": [
+                  "vendor",
+                  "procedural",
+                  "scan"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "draft",
+                  "approved"
+                ]
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          },
+          "scan": {
+            "type": "object",
+            "description": "3D scans of the owner's unit (prompts/item-scan.md). status: wanted = worth scanning, scanned = has a capture, not_needed = a box or vendor model is enough",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": [
+                  "wanted",
+                  "scanned",
+                  "not_needed"
+                ]
+              },
+              "note": {
+                "type": "string"
+              },
+              "captures": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "path",
+                    "date"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "raw export, verbatim, under reference/items/<id>/scan/"
+                    },
+                    "date": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "app": {
+                      "type": "string",
+                      "description": "e.g. Scaniverse, Polycam, Reality Composer"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "description": "LiDAR / photo (photogrammetry) / object capture"
+                    },
+                    "units": {
+                      "enum": [
+                        "m",
+                        "cm",
+                        "mm",
+                        "in"
+                      ]
+                    },
+                    "covers": {
+                      "type": "string",
+                      "description": "what is in the capture, e.g. 'table only' or 'one chair'"
+                    },
+                    "tape_check": {
+                      "type": "string",
+                      "description": "owner tape values used to check the scan's scale"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "placement-rules.schema.json",
+  "title": "placement-rules.json (owner preferences for where and how items go)",
+  "type": "object",
+  "required": ["rules"],
+  "additionalProperties": false,
+  "$defs": {
+    "target": {
+      "description": "wall (W-S/W-E/W-N/W-W), interior wall (IW-1), 'any-wall', zone (Z-GYM), wall item (OUT-S1, OH-3) or inventory item id",
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+      ]
+    },
+    "side": {"enum": ["front", "back", "left", "right"]}
+  },
+  "properties": {
+    "meta": {"type": "object"},
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "strength", "said"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^R-[0-9]{3,}$"},
+          "item": {"type": "string", "description": "inventory id the rule is about (omit only for kind 'manual')"},
+          "kind": {
+            "enum": ["in_zone", "against", "facing", "facing_toward", "state", "near", "away_from",
+                     "placed", "not_placed", "manual"]
+          },
+          "strength": {"enum": ["must", "prefer"], "description": "must -> ERROR when broken, prefer -> WARN"},
+          "priority": {"type": "integer", "minimum": 1, "maximum": 5, "description": "1 = highest precedence (hard zoning/safety), 2 = primary zone/wall placement, 3 = secondary adjacency"},
+          "layouts": {"type": "array", "items": {"type": "string"}, "description": "layout names; omit = every layout"},
+          "target": {"$ref": "#/$defs/target"},
+          "side": {"$ref": "#/$defs/side"},
+          "direction": {"enum": ["N", "S", "E", "W"]},
+          "value": {"enum": ["open", "folded"]},
+          "max_gap": {"type": "number", "minimum": 0},
+          "max_dist": {"type": "number", "minimum": 0},
+          "min_dist": {"type": "number", "minimum": 0},
+          "tolerance": {"type": "number", "minimum": 0, "maximum": 180},
+          "said": {"type": "string", "minLength": 1, "description": "the owner's words, verbatim"},
+          "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "note": {"type": "string"}
+        },
+        "allOf": [
+          {"if": {"properties": {"kind": {"not": {"const": "manual"}}}}, "then": {"required": ["item"]}},
+          {"if": {"properties": {"kind": {"enum": ["in_zone", "against", "facing_toward", "near", "away_from"]}}},
+           "then": {"required": ["target"]}},
+          {"if": {"properties": {"kind": {"const": "facing"}}}, "then": {"required": ["direction"]}},
+          {"if": {"properties": {"kind": {"const": "state"}}}, "then": {"required": ["value"]}},
+          {"if": {"properties": {"kind": {"const": "near"}}}, "then": {"required": ["max_dist"]}},
+          {"if": {"properties": {"kind": {"const": "away_from"}}}, "then": {"required": ["min_dist"]}}
+        ]
+      }
+    }
+  }
+}

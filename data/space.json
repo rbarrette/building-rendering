@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "name": "EXAMPLE two-car garage (replace with your space)",
+    "units": "inches (decimal)",
+    "origin": "Inside SW corner at finished floor level (0,0,0)",
+    "axes": "+X east, +Y north, +Z up",
+    "walls": [
+      "W-S",
+      "W-E",
+      "W-N",
+      "W-W"
+    ],
+    "wall_item_convention": "Standing inside facing the wall, measured from the wall's LEFT end. Openings: offset = left edge. Other wall items: offset = centre. z = bottom of item.",
+    "left_ends": {
+      "W-S": "east end",
+      "W-E": "north end",
+      "W-N": "west end",
+      "W-W": "south end"
+    },
+    "zone_convention": "x,y = SW (min) corner of the rectangle; w along X, d along Y",
+    "updated": "2026-01-01",
+    "long_axis": {
+      "value": "X",
+      "confidence": "estimated",
+      "source": "example data",
+      "note": "Example only. Replace everything in this file with your own measurements."
+    }
+  },
+  "shell": {
+    "length_x": {
+      "value": 288,
+      "confidence": "estimated",
+      "source": "example: 24 ft"
+    },
+    "width_y": {
+      "value": 288,
+      "confidence": "estimated",
+      "source": "example: 24 ft"
+    },
+    "wall_height": {
+      "value": 108,
+      "confidence": "estimated",
+      "source": "example: 9 ft ceiling"
+    },
+    "wall_thickness": {
+      "value": 5.5,
+      "confidence": "estimated"
+    },
+    "slab_thickness": {
+      "value": 4,
+      "confidence": "estimated"
+    },
+    "roof_pitch": {
+      "value": 4,
+      "confidence": "estimated",
+      "note": "rise per 12 run"
+    },
+    "truss_chord": {
+      "w": {
+        "value": 1.5,
+        "confidence": "spec",
+        "source": "2x4 nominal"
+      },
+      "h": {
+        "value": 3.5,
+        "confidence": "spec",
+        "source": "2x4 nominal"
+      }
+    }
+  },
+  "interior_walls": [],
+  "wall_items": [
+    {
+      "id": "OH-1",
+      "name": "Overhead door 16x7",
+      "kind": "overhead_door",
+      "leaf": "insulated",
+      "wall": "W-S",
+      "offset": 48,
+      "z": 0,
+      "w": 192,
+      "h": 84,
+      "clear_depth": 48,
+      "confidence": "estimated",
+      "source": "example"
+    },
+    {
+      "id": "DR-MAIN",
+      "name": "Entry door to the house",
+      "kind": "door",
+      "leaf": "solid",
+      "wall": "W-E",
+      "offset": 30,
+      "z": 0,
+      "w": 36,
+      "h": 80,
+      "clear_depth": 36,
+      "confidence": "estimated",
+      "source": "example"
+    },
+    {
+      "id": "WIN-1",
+      "name": "Window",
+      "kind": "window",
+      "leaf": "glass",
+      "wall": "W-W",
+      "offset": 180,
+      "z": 40,
+      "w": 36,
+      "h": 48,
+      "confidence": "estimated",
+      "source": "example"
+    },
+    {
+      "id": "PANEL-1",
+      "name": "Electrical panel",
+      "kind": "panel",
+      "wall": "W-N",
+      "offset": 40,
+      "z": 48,
+      "w": 14,
+      "h": 30,
+      "depth": 4,
+      "confidence": "estimated",
+      "source": "example"
+    },
+    {
+      "id": "OUT-N1",
+      "name": "Outlet (N wall)",
+      "kind": "outlet",
+      "wall": "W-N",
+      "offset": 150,
+      "z": 18,
+      "w": 3,
+      "h": 5,
+      "depth": 1.5,
+      "confidence": "estimated",
+      "source": "example"
+    },
+    {
+      "id": "OUT-W1",
+      "name": "Outlet (W wall)",
+      "kind": "outlet",
+      "wall": "W-W",
+      "offset": 100,
+      "z": 44,
+      "w": 3,
+      "h": 5,
+      "depth": 1.5,
+      "confidence": "estimated",
+      "source": "example"
+    }
+  ],
+  "ceiling_items": [
+    {
+      "id": "T01",
+      "type": "truss",
+      "x": 24.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T02",
+      "type": "truss",
+      "x": 48.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T03",
+      "type": "truss",
+      "x": 72.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T04",
+      "type": "truss",
+      "x": 96.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T05",
+      "type": "truss",
+      "x": 120.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T06",
+      "type": "truss",
+      "x": 144.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T07",
+      "type": "truss",
+      "x": 168.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T08",
+      "type": "truss",
+      "x": 192.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T09",
+      "type": "truss",
+      "x": 216.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T10",
+      "type": "truss",
+      "x": 240.0,
+      "span": "Y",
+      "confidence": "estimated"
+    },
+    {
+      "id": "T11",
+      "type": "truss",
+      "x": 264.0,
+      "span": "Y",
+      "confidence": "estimated"
+    }
+  ],
+  "floor_items": [],
+  "zones": [
+    {
+      "id": "Z-PARK",
+      "name": "Car parking (keep clear)",
+      "kind": "keep_clear",
+      "x": 48,
+      "y": 0,
+      "w": 120,
+      "d": 216,
+      "confidence": "estimated",
+      "source": "example: one car stays in the garage"
+    },
+    {
+      "id": "Z-SHOP",
+      "name": "Workshop corner",
+      "kind": "activity",
+      "x": 168,
+      "y": 156,
+      "w": 120,
+      "d": 132,
+      "confidence": "estimated",
+      "source": "example"
+    }
+  ],
+  "reference_scans": []
+}

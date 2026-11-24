@@ -1,0 +1,4 @@
+jsonschema>=4.18
+# only for extras/electrical/blueprint.py:
+# reportlab>=4.0
+# ezdxf>=1.1

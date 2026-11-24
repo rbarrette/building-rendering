@@ -1,0 +1,942 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "space.schema.json",
+  "title": "space.json",
+  "type": "object",
+  "required": [
+    "meta",
+    "shell",
+    "interior_walls",
+    "wall_items",
+    "ceiling_items",
+    "floor_items",
+    "zones"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "confidence": {
+      "enum": [
+        "measured",
+        "spec",
+        "estimated"
+      ]
+    },
+    "num": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "confidence": {
+              "$ref": "#/$defs/confidence"
+            },
+            "source": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "wall": {
+      "enum": [
+        "W-S",
+        "W-E",
+        "W-N",
+        "W-W"
+      ]
+    }
+  },
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "units",
+        "origin",
+        "axes",
+        "long_axis"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "units": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "axes": {
+          "type": "string"
+        },
+        "walls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wall"
+          }
+        },
+        "wall_item_convention": {
+          "type": "string"
+        },
+        "left_ends": {
+          "type": "object"
+        },
+        "zone_convention": {
+          "type": "string"
+        },
+        "updated": {
+          "type": "string"
+        },
+        "long_axis": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "enum": [
+                "X",
+                "Y"
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/confidence"
+            },
+            "source": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "interior_wall_convention": {
+          "type": "string"
+        },
+        "surface_note": {
+          "type": "string"
+        },
+        "reference_surface": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "shell": {
+      "type": "object",
+      "required": [
+        "length_x",
+        "width_y",
+        "wall_height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "length_x": {
+          "$ref": "#/$defs/num"
+        },
+        "width_y": {
+          "$ref": "#/$defs/num"
+        },
+        "wall_height": {
+          "$ref": "#/$defs/num"
+        },
+        "wall_thickness": {
+          "$ref": "#/$defs/num"
+        },
+        "slab_thickness": {
+          "$ref": "#/$defs/num"
+        },
+        "roof_pitch": {
+          "$ref": "#/$defs/num"
+        },
+        "truss_chord": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "$ref": "#/$defs/num"
+            },
+            "h": {
+              "$ref": "#/$defs/num"
+            }
+          },
+          "additionalProperties": false
+        },
+        "under_slab_drain": {
+          "type": "boolean"
+        },
+        "wall_lengths": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/wall"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/num"
+          }
+        },
+        "diagonals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "from",
+              "to",
+              "length"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "from": {
+                "enum": [
+                  "SW",
+                  "SE",
+                  "NE",
+                  "NW"
+                ]
+              },
+              "to": {
+                "enum": [
+                  "SW",
+                  "SE",
+                  "NE",
+                  "NW"
+                ]
+              },
+              "length": {
+                "$ref": "#/$defs/num"
+              },
+              "confidence": {
+                "$ref": "#/$defs/confidence"
+              },
+              "source": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "wall_foam": {
+          "type": "string"
+        },
+        "roof_foam": {
+          "type": "string"
+        },
+        "stud_to_foam": {
+          "$ref": "#/$defs/num"
+        },
+        "wall_framing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "note": {"type": "string"},
+            "foam_recess": {"$ref": "#/$defs/num"},
+            "corner_posts": {"type": "boolean"},
+            "eave_header": {
+              "type": "object",
+              "required": ["walls", "z0", "z1"],
+              "properties": {
+                "walls": {"type": "array", "items": {"enum": ["W-S", "W-E", "W-N", "W-W"]}},
+                "z0": {"type": "number"}, "z1": {"type": "number"},
+                "material": {"type": "string"},
+                "confidence": {"$ref": "#/$defs/confidence"}, "source": {"type": "string"}
+              }
+            },
+            "door_trim": {
+              "type": "object",
+              "properties": {
+                "kinds": {"type": "array", "items": {"type": "string"}},
+                "w": {"type": "number"}, "depth": {"type": "number"}, "header_h": {"type": "number"},
+                "material": {"type": "string"},
+                "confidence": {"$ref": "#/$defs/confidence"}, "source": {"type": "string"}
+              }
+            },
+            "elements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "wall", "kind", "a0", "a1", "z0", "z1"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {"type": "string"},
+                  "wall": {"enum": ["W-S", "W-E", "W-N", "W-W"]},
+                  "kind": {"enum": ["board", "stud", "backer", "shelf", "rack", "header"]},
+                  "a0": {"type": "number"}, "a1": {"type": "number"},
+                  "z0": {"type": "number"}, "z1": {"type": "number"},
+                  "depth": {"type": "number"},
+                  "material": {"enum": ["lumber", "brown_wood", "plywood", "white", "black", "foam"]},
+                  "confidence": {"$ref": "#/$defs/confidence"},
+                  "source": {"type": "string"},
+                  "note": {"type": "string"},
+                  "todo": {"type": "boolean"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "interior_walls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "thickness",
+          "height"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          },
+          "x2": {
+            "type": "number"
+          },
+          "y2": {
+            "type": "number"
+          },
+          "thickness": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "paint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "brand": {"type": "string"},
+              "code": {"type": "string"},
+              "name": {"type": "string"},
+              "hex": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+              "lrv": {"type": "number"},
+              "url": {"type": "string"}
+            }
+          },
+          "framing": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["studs"],
+            "properties": {
+              "stud_width": {"type": "number", "exclusiveMinimum": 0},
+              "stud_depth": {"type": "number", "exclusiveMinimum": 0},
+              "spacing": {"type": "number", "exclusiveMinimum": 0},
+              "confidence": {"$ref": "#/$defs/confidence"},
+              "source": {"type": "string"},
+              "note": {"type": "string"},
+              "studs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "x"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {"type": "string"},
+                    "x": {"type": "number"},
+                    "z0": {"type": "number"},
+                    "z1": {"type": "number"},
+                    "kind": {"enum": ["stud", "jamb", "cripple", "end"]},
+                    "note": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "trim": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "side": {"enum": ["N", "S", "E", "W"]},
+              "batten_width": {"type": "number", "exclusiveMinimum": 0},
+              "batten_depth": {"type": "number", "exclusiveMinimum": 0},
+              "casing_width": {"type": "number", "exclusiveMinimum": 0},
+              "casing_depth": {"type": "number", "exclusiveMinimum": 0},
+              "confidence": {"$ref": "#/$defs/confidence"},
+              "source": {"type": "string"},
+              "note": {"type": "string"},
+              "horizontal_rails": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "z", "h", "spans"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {"type": "string"},
+                    "z": {"type": "number"},
+                    "h": {"type": "number", "exclusiveMinimum": 0},
+                    "w_depth": {"type": "number", "exclusiveMinimum": 0},
+                    "spans": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "minItems": 2,
+                        "maxItems": 2
+                      }
+                    },
+                    "note": {"type": "string"}
+                  }
+                }
+              },
+              "vertical_battens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["x", "z0", "z1"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {"type": "number"},
+                    "z0": {"type": "number"},
+                    "z1": {"type": "number"},
+                    "w": {"type": "number", "exclusiveMinimum": 0},
+                    "note": {"type": "string"}
+                  }
+                }
+              },
+              "door_casings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["opening", "left_x", "right_x", "z0", "z1", "header"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "opening": {"type": "string"},
+                    "left_x": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+                    "right_x": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+                    "z0": {"type": "number"},
+                    "z1": {"type": "number"},
+                    "header": {
+                      "type": "object",
+                      "required": ["x0", "x1", "z0", "z1"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "x0": {"type": "number"},
+                        "x1": {"type": "number"},
+                        "z0": {"type": "number"},
+                        "z1": {"type": "number"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "openings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind",
+                "offset",
+                "w",
+                "h"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "door",
+                    "opening",
+                    "window"
+                  ]
+                },
+                "offset": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "w": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "z": {
+                  "type": "number"
+                },
+                "h": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "clear_depth": {
+                  "type": "number"
+                },
+                "confidence": {
+                  "$ref": "#/$defs/confidence"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "todo": {
+                  "type": "boolean"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "slide": {
+                  "type": "object",
+                  "required": [
+                    "side",
+                    "dir",
+                    "travel"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "side": {
+                      "enum": [
+                        "N",
+                        "S",
+                        "E",
+                        "W"
+                      ]
+                    },
+                    "dir": {
+                      "enum": [
+                        "+x",
+                        "-x",
+                        "+y",
+                        "-y"
+                      ]
+                    },
+                    "travel": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "wall_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "wall",
+          "offset",
+          "z",
+          "w",
+          "h"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "working_space_offset": {
+            "type": "number",
+            "description": "panels only: centre (same wall-offset convention) of the 30in-min working-space zone when it is not centred on the panel (NEC lets it sit off-centre as long as it covers the equipment front)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "overhead_door",
+              "door",
+              "window",
+              "fixture",
+              "outlet",
+              "panel",
+              "mount",
+              "post",
+              "vent"
+            ]
+          },
+          "leaf": {
+            "enum": [
+              "glass",
+              "insulated",
+              "solid"
+            ]
+          },
+          "wall": {
+            "$ref": "#/$defs/wall"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          },
+          "depth": {
+            "type": "number"
+          },
+          "clear_depth": {
+            "type": "number"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "open_depth": {
+            "type": "number"
+          },
+          "model": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "columns": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "ceiling_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "truss",
+              "platform",
+              "box",
+              "light",
+              "fan",
+              "duct"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "gable",
+              "interior"
+            ]
+          },
+          "span": {
+            "enum": [
+              "X",
+              "Y"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          },
+          "rot": {
+            "type": "number"
+          },
+          "between": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "color": {
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "model": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "floor_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "x",
+          "y",
+          "w",
+          "d",
+          "h"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          },
+          "rot": {
+            "type": "number"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "color": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 3,
+            "maxItems": 4
+          },
+          "fronts": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "x",
+          "y",
+          "w",
+          "d"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "activity",
+              "keep_clear"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          },
+          "d": {
+            "type": "number"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "reference_scans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "file"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "source_units": {
+            "enum": [
+              "m",
+              "in",
+              "cm",
+              "mm"
+            ]
+          },
+          "rot_z": {
+            "type": "number"
+          },
+          "location": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "source": {
+            "type": "string"
+          },
+          "todo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "mesh",
+              "points"
+            ],
+            "description": "mesh (textured surface) or points (coloured point cloud, PLY)"
+          },
+          "point_size": {
+            "type": "number",
+            "description": "rendered point cube size, inches (points only)"
+          }
+        }
+      }
+    }
+  }
+}

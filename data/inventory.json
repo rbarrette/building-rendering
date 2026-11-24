@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "units": "inches (decimal)",
+    "footprint_convention": "w along X, d along Y at rot 0. Item 'front' faces SOUTH (-Y) at rot 0; rot is degrees counter-clockwise seen from above. Layout x,y = footprint centre.",
+    "clearance_convention": "front/back = extra space beyond the footprint on those sides, sides = each of left/right, top = above."
+  },
+  "items": [
+    {
+      "id": "workbench",
+      "name": "Workbench 6 ft",
+      "category": "workshop",
+      "owned": "owned",
+      "w": 72,
+      "d": 30,
+      "h": 36,
+      "clearance": {
+        "front": 36,
+        "sides": 0,
+        "back": 0,
+        "top": 0
+      },
+      "movable": false,
+      "confidence": "estimated",
+      "source": "example",
+      "todo": true
+    },
+    {
+      "id": "tool-chest",
+      "name": "Rolling tool chest",
+      "category": "workshop",
+      "owned": "planned",
+      "w": 46,
+      "d": 24,
+      "h": 60,
+      "clearance": {
+        "front": 30,
+        "sides": 0,
+        "back": 0,
+        "top": 0
+      },
+      "movable": true,
+      "confidence": "estimated",
+      "source": "example",
+      "todo": true
+    },
+    {
+      "id": "shelving",
+      "name": "Steel shelving unit 48x24x72",
+      "category": "storage",
+      "owned": "owned",
+      "w": 48,
+      "d": 24,
+      "h": 72,
+      "clearance": {
+        "front": 24,
+        "sides": 0,
+        "back": 0,
+        "top": 6
+      },
+      "movable": false,
+      "confidence": "estimated",
+      "source": "example",
+      "todo": true
+    },
+    {
+      "id": "example-treadmill",
+      "name": "Folding treadmill (example procedural asset)",
+      "category": "gym",
+      "owned": "considering",
+      "w": 34,
+      "d": 79,
+      "h": 62,
+      "folded": {
+        "w": 34,
+        "d": 44,
+        "h": 72
+      },
+      "clearance": {
+        "front": 12,
+        "sides": 20,
+        "back": 79,
+        "top": 0
+      },
+      "movable": true,
+      "confidence": "spec",
+      "source": "example: Matrix TF50 spec sheet"
+    }
+  ]
+}

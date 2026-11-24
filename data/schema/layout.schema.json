@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "layout.schema.json",
+  "title": "layout file (layouts/*.json)",
+  "type": "object",
+  "required": [
+    "placements"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object"
+    },
+    "placements": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "rot": {
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "folded"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

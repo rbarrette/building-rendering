@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "name": "Option A (example)",
+    "description": "Example layout: workbench on the N wall in the workshop corner, shelving on the E wall, treadmill folded by the window."
+  },
+  "placements": {
+    "workbench": {
+      "x": 240,
+      "y": 273,
+      "rot": 0,
+      "note": "R-001/R-002: back on W-N (rot 0 = front faces S), in Z-SHOP"
+    },
+    "tool-chest": {
+      "x": 178,
+      "y": 276,
+      "rot": 0,
+      "note": "N wall, west of the workbench"
+    },
+    "shelving": {
+      "x": 276,
+      "y": 120,
+      "rot": 270,
+      "note": "back on W-E (rot 270 = front faces W; turned, so w and d swap)"
+    },
+    "example-treadmill": {
+      "x": 215,
+      "y": 120,
+      "rot": 90,
+      "state": "folded",
+      "note": "R-003: stored folded, between the parking bay and the shelving"
+    }
+  }
+}

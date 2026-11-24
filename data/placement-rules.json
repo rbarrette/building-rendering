@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "description": "Owner placement preferences. Every layout should honour these. Captured with prompts/placement-rules.md (/placement-rule); checked by make validate (must = ERROR, prefer = WARN).",
+    "updated": "2026-01-01"
+  },
+  "rules": [
+    {
+      "id": "R-001",
+      "item": "workbench",
+      "kind": "against",
+      "strength": "prefer",
+      "target": "any-wall",
+      "side": "back",
+      "max_gap": 6,
+      "said": "Workbench goes against a wall.",
+      "date": "2026-01-01"
+    },
+    {
+      "id": "R-002",
+      "item": "workbench",
+      "kind": "in_zone",
+      "strength": "prefer",
+      "target": "Z-SHOP",
+      "said": "Keep the tools in the back corner.",
+      "date": "2026-01-01"
+    },
+    {
+      "id": "R-003",
+      "item": "example-treadmill",
+      "kind": "state",
+      "strength": "prefer",
+      "value": "folded",
+      "said": "Treadmill stays folded up when nobody is using it.",
+      "date": "2026-01-01"
+    }
+  ]
+}
