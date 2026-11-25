@@ -29,5 +29,9 @@
       "state": "folded",
       "note": "R-003: stored folded, between the parking bay and the shelving"
     }
+  },
+  "lighting": {
+    "plan": "workshop",
+    "scene": "work"
   }
 }

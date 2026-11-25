@@ -18,6 +18,7 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as C  # noqa: E402
+import lighting_plan as LP  # noqa: E402
 
 PLAN_CUT = 110  # inches above the slab for plan-view section cuts
 SUN_ANGLED = (math.radians(38), 0, math.radians(35))  # high sun from the SSE
@@ -97,6 +98,62 @@ def setup_photo(scene, engine, L, W):
     scene.collection.objects.link(ob)
 
 
+# Night renders of a lighting plan. The scene is in inches but Blender lights fall off per Blender unit, so every
+# light is scaled by 1/0.0254^2 to give metric-correct levels. Not photometrically calibrated (EEVEE, plain spot
+# cones): numbers come from `make lighting`; these renders are for looks.
+LIGHT_SCALE = 1 / 0.0254 ** 2
+NIGHT_EXPOSURE = float(os.environ.get("NIGHT_EXPOSURE", -0.5))
+
+
+def apply_lighting(scene, plan, scene_id):
+    """Show only LIGHT_<plan>; with a scene: night world, no sun, each light set from data/lighting.json levels."""
+    data = LP.load()
+    if plan not in data["plans"]:
+        raise SystemExit(f"unknown lighting plan '{plan}' (have: {', '.join(data['plans'])})")
+    for c in bpy.data.collections:
+        if c.name.startswith("LIGHT_"):
+            c.hide_render = c.name != f"LIGHT_{plan}"
+    if not scene_id:
+        return
+    if scene_id not in data["scenes"]:
+        raise SystemExit(f"unknown scene '{scene_id}' (have: {', '.join(data['scenes'])})")
+    pkgs, fxs = data["table_packages"], data["fixture_types"]
+    n = 0
+    for ob in bpy.data.objects:
+        ld = ob.data if ob.type == "LIGHT" else None
+        if ld is None or "plan" not in ld:
+            continue
+        if ld["plan"] != plan:
+            ld.energy = 0.0
+            continue
+        f, rgb, cct = LP.scene_level(data, scene_id, ld["layer"])
+        if rgb:
+            col, lf = rgb, 1.0
+        else:
+            own = ld["cct"]
+            t = cct or own
+            if data["layers"][ld["layer"]]["kind"] == "table":
+                pk = pkgs[ld["package"]]
+                if fxs[pk["fixture"]].get("cct_mode") == "fixed":  # two fixed-CCT circuits: dim instead of recolouring
+                    f *= LP.circuit_mix(pk["ccts"], t)[pk["ccts"].index(own)]
+                    t = own
+                f *= ld.get("dim", 1.0)
+            col = LP.cct_rgb(t)
+            lf = 1.0 / LP.lum(col)
+        watts = 4 * math.pi * ld["peak_cd"] / 683 if ld.type == "SPOT" else ld["lm"] / 683
+        ld.color = col
+        ld.energy = watts * lf * f * LIGHT_SCALE
+        n += f > 0
+    sun = bpy.data.objects.get("SUN")
+    if sun:
+        sun.hide_render = True
+    bg = scene.world.node_tree.nodes.get("Background") if scene.world and scene.world.use_nodes else None
+    if bg:
+        bg.inputs[1].default_value = 0.0
+    scene.view_settings.exposure = NIGHT_EXPOSURE + data["scenes"][scene_id].get("ev", 0.0)
+    print(f"LIGHTING: plan {plan}, scene {scene_id}: {n} lights on")
+
+
 def render(path, res, scale=100):
     s = bpy.context.scene
     s.render.resolution_x, s.render.resolution_y = res
@@ -170,8 +227,10 @@ def main():
     ap.add_argument("--engine", choices=("eevee", "cycles"), default="eevee", help="photo look only")
     ap.add_argument("--scale", type=int, default=100, help="resolution percentage")
     ap.add_argument("--version", default="", help="optional version label for renders/<layout>/versions/")
+    ap.add_argument("--lighting", default="", help="lighting plan from data/lighting.json (default: the layout's)")
+    ap.add_argument("--scene", default="", help="lighting scene: photo look renders at night with that plan + scene")
     args = ap.parse_args(argv)
-    photo = args.look == "photo"
+    photo = args.look == "photo" or bool(args.scene)
 
     name = C.layout_name(args.layout)
     shop = C.load(C.ROOT / "data" / "space.json")
@@ -181,6 +240,13 @@ def main():
     scene.render.engine = "BLENDER_WORKBENCH"
     if photo:
         setup_photo(scene, args.engine, L, W)
+    lp = C.layout_path(args.layout)
+    night = bool(args.scene)
+    if (args.lighting or night) and not LP.PATH.exists():
+        raise SystemExit("--lighting/--scene need data/lighting.json")
+    if args.lighting or night:
+        plan, scene_id = LP.layout_choice(LP.load(), C.load(lp) if lp else None, args.lighting or None, args.scene or None)
+        apply_lighting(scene, plan, scene_id if night else None)
     sh = scene.display.shading
     sh.light, sh.color_type = "STUDIO", "MATERIAL"
     sh.show_object_outline = True
@@ -189,7 +255,7 @@ def main():
         sh.use_world_space_lighting = True
     except Exception:
         pass
-    out = C.ROOT / "renders" / name
+    out = C.ROOT / "renders" / name / ("lighting" if night else "")
     out.mkdir(parents=True, exist_ok=True)
     centre = Vector((L / 2, W / 2, 0))
 
@@ -219,7 +285,7 @@ def main():
             # overhead items (trusses, air handler, lights, door tracks) and wall headers above openings
             # would hide the floor plan; hiding headers shows doors as gaps like a drawn plan
             hidden += [o for o in bpy.data.objects
-                       if o.name.startswith(("TRUSS_", "CI_", "LBL_AH", "LBL_HB", "TRACK_")) or o.name.endswith("_hdr")]
+                       if o.name.startswith(("TRUSS_", "CI_", "LT_", "LBL_AH", "LBL_HB", "TRACK_")) or o.name.endswith("_hdr")]
             if view == "scan":  # scan overlay: model walls/fixed items over the textured scan, no slab/zones
                 # textured mesh only; point clouds need EEVEE (see scan_views.py)
                 hidden = [o for o in hidden if not o.name.startswith("SCAN_") or o.get("scan_kind") == "points"]
@@ -254,18 +320,19 @@ def main():
                 cd.lens = 16
                 cam.location = (365, 70, 62)  # in front of the stowed treadmill on W-S (was y=30)
                 look_at(cam, (365, 233.25, 54))
+            # eye views scale with the room: y as a fraction of its N-S width W (tuned on a 59 x 39 ft shop)
             elif view == "eye-north":
-                cam.location = (L - 30, 300, 64)
-                look_at(cam, (0, 380, 54))
+                cam.location = (L - 30, W * 0.64, 64)
+                look_at(cam, (0, W * 0.80, 54))
             elif view == "eye-north-w":
-                cam.location = (30, 340, 64)
-                look_at(cam, (L, 340, 54))
+                cam.location = (30, W * 0.72, 64)
+                look_at(cam, (L, W * 0.72, 54))
             elif view == "eye-south":
-                cam.location = (L - 30, 112, 64)
-                look_at(cam, (0, 100, 54))
+                cam.location = (L - 30, W * 0.24, 64)
+                look_at(cam, (0, W * 0.21, 54))
             else:  # eye-south-w
-                cam.location = (30, 115, 64)
-                look_at(cam, (L, 115, 54))
+                cam.location = (30, W * 0.24, 64)
+                look_at(cam, (L, W * 0.24, 54))
         else:
             print(f"unknown view '{view}' - skipped")
             continue
@@ -280,13 +347,13 @@ def main():
         if sun:  # near-overhead for plan/iso so walls don't throw long shadows across the floor
             sun.rotation_euler = SUN_OVERHEAD if view in ("plan", *ISO_VIEWS) else SUN_ANGLED
         scene.render.resolution_percentage = args.scale
-        out_file = out / (f"photo-{view}.png" if photo else f"{view}.png")
+        out_file = out / (f"{plan}__{scene_id}__{view}.png" if night else f"photo-{view}.png" if photo else f"{view}.png")
         render(out_file, res, args.scale)
         rendered_files.append(out_file)
         for o in hidden:
             o.hide_render = False
 
-    if name != "none" and rendered_files:
+    if name != "none" and rendered_files and (not night or args.version):
         snapshot_version(out, name, rendered_files, args.version)
 
 

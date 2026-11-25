@@ -228,6 +228,32 @@
       "x": 264.0,
       "span": "Y",
       "confidence": "estimated"
+    },
+    {
+      "id": "CL-1",
+      "name": "4 ft LED shop light #1",
+      "type": "light",
+      "x": 96,
+      "y": 144,
+      "z": 104,
+      "w": 8,
+      "d": 48,
+      "h": 3,
+      "confidence": "spec",
+      "note": "example: an existing ceiling light"
+    },
+    {
+      "id": "CL-2",
+      "name": "4 ft LED shop light #2",
+      "type": "light",
+      "x": 204,
+      "y": 144,
+      "z": 104,
+      "w": 8,
+      "d": 48,
+      "h": 3,
+      "confidence": "spec",
+      "note": "example: an existing ceiling light"
     }
   ],
   "floor_items": [],

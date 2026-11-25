@@ -1,7 +1,8 @@
 """Lighting simulation of the shop: game-table spot packages, indirect layers, scenes and themes.
 
-Brief: ~/Downloads/shop-lighting-blender-prompt.md (copy in prompts/lighting-brief.md).
-Every guess is in PARAMS below; change it and re-run.  `make lighting` runs every stage in order:
+Brief: the owner's lighting brief (geometry, fixture options, what to compare); the plan lives in data/lighting.json.
+Every guess is in PARAMS below or in data/lighting.json (fixtures, light layers, packages, scenes; the analyze stage
+writes the optimised table heads back into its plans); change it and re-run.  `make lighting` runs every stage in order:
 
   Blender -b --python scripts/lighting.py -- calibrate   # factory scene: 1000 cd spot -> scale factors
   Blender -b --python scripts/lighting.py -- build       # blend/option-a.blend -> blend/lighting.blend (metres)
@@ -28,7 +29,7 @@ import numpy as np
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]  # extras/<study>/ -> repo root
 IN = 0.0254
 FT = 12.0
 
@@ -94,43 +95,9 @@ PARAMS = {
     # ---- glare
     "glare_los_deg": 40.0, "glare_beam_deg": 25.0,
 
-    # ---- fixture library  (lm = catalogue lumens; peak = candela; radius in metres = lens radius)
-    "fixtures": {
-        "CHG":   {"name": "WAC Charge 8010-CS", "lm": 865, "beam": 45, "peak": 1006, "radius": 0.025, "dia": 2.6, "len": 5.5, "cct": 3000, "cct_mode": "switch"},
-        "CHG30": {"name": "WAC Charge 8010-30", "lm": 850, "beam": 40, "peak": 1196, "radius": 0.025, "dia": 2.6, "len": 5.5, "cct": 3000, "cct_mode": "fixed"},
-        "SBL":   {"name": "SuperBrightLEDs 20W Halo", "lm": 1760, "beam": 25, "peak": None, "in_beam": 0.6, "radius": 0.035, "dia": 3.5, "len": 6.0, "cct": 3000, "cct_mode": "fixed", "flag": "peak cd not published: estimated from lumens (60% in-beam requested; capped at the catalogue 1,760 lm, i.e. ~50% in-beam)"},
-        "SILO":  {"name": "WAC Silo X20 2020", "lm": 869, "beam": 25, "peak": 3400, "radius": 0.025, "dia": 2.6, "len": 6.5, "cct": 2700, "cct_mode": "fixed", "louver_cutoff": 35, "louver_trans": 0.9, "flag": "25 deg values interpolated between 15 and 50 deg"},
-        "PUCK":  {"name": "Govee Permanent Outdoor Lights 2 puck", "lm": 50, "beam": 30, "peak": None, "radius": 0.02, "dia": 2.0, "len": 0.8, "cct": 2700},   # [P] 50 lm
-        "WASH":  {"name": "Chauvet SlimPAR Q12 ILS", "lm": 1500, "beam": 25, "peak": None, "radius": 0.1, "dia": 8.0, "len": 3.7, "cct": 3000},       # [P] 1500 lm
-        "MOVER": {"name": "moving head (Boss fight)", "lm": 1200, "beam": 12, "peak": None, "radius": 0.04, "dia": 6.0, "len": 9.0, "cct": 6000},
-        "GOBO":  {"name": "gobo spot (Dungeon)", "lm": 1500, "beam": 40, "peak": None, "radius": 0.03, "dia": 4.0, "len": 8.0, "cct": 4000},
-        "UPL":   {"name": "Govee Uplighter floor lamp", "lm": 1500, "beam": 100, "peak": None, "radius": 0.08, "dia": 10.0, "len": 3.0, "cct": 2400},  # [P] 1500 lm
-        "HB":    {"name": "Greentek GT-HB8 240W", "lm": 33600, "profile": "cosine", "radius": 0.15, "dia": 13.0, "len": 4.0, "cct": 5700,
-                  "flag": "GT-HB8 240W sheet not found; 33,600 lm from Greentek's 240W UFO4 sheet"},
-    },
-    # strips: lm per foot [P], runs as (x0,y0,z, x1,y1,z) in inches, normal (nx,ny,nz)
-    "strips": {
-        "UC": {"lmft": 400, "cct": 3500, "runs": [((315, 249, 59.6), (351, 249, 59.6)), ((411, 249, 59.6), (447, 249, 59.6)),
-                                                  ((351, 249, 59.6), (411, 249, 59.6))], "normal": (0, -0.7071, -0.7071)},
-        "GR": {"lmft": 350, "cct": 3000, "runs": [((118, 242.75, 141.0), (210, 242.75, 141.0)), ((517, 242.75, 141.0), (708, 242.75, 141.0))], "normal": (0, 0, -1)},
-        "WW": {"lmft": 350, "cct": 3000, "runs": [((696.6, 250, 141.0), (696.6, 460, 141.0)), ((15, 250, 141.0), (15, 370, 141.0))], "normal": (0, 0, -1)},
-        "UP": {"lmft": 300, "cct": 2700, "runs": [((316, 240.75, 96.3), (350, 240.75, 96.3)), ((412, 240.75, 96.3), (446, 240.75, 96.3))], "normal": (0, -0.5, 0.866)},
-        "TOE": {"lmft": 100, "cct": 2700, "runs": [((310, 258.5, 1.0), (467, 258.5, 1.0))], "normal": (0, 0.5, -0.866)},
-        "BIAS": {"lmft": 150, "cct": 6500, "runs": [((570, 239.0, 92.0), (637, 239.0, 92.0)), ((570, 239.0, 56.0), (637, 239.0, 56.0)),
-                                                    ((569, 239.0, 58.0), (569, 239.0, 90.0)), ((638, 239.0, 58.0), (638, 239.0, 90.0))], "normal": (0, -1, 0)},
-    },
-    "strip_seg": 6.0,                 # analytic discretisation (in)
-    "pucks": {"chords": ["T06", "T07", "T10", "T11"], "spacing": 12.0, "y0": 250.0, "y1": 462.0, "z": 141.2},
-    "washes": [  # mount (x,y,z) -> aim (x,y,z), on chords
-        ((142.32, 300, 138), (142.32, 237.75, 70)), ((284.64, 300, 138), (240, 237.75, 70)),
-        ((521.84, 300, 138), (530, 237.75, 70)), ((664.16, 300, 138), (664.16, 237.75, 70)),
-        ((189.76, 420, 138), (189.76, 471.75, 70)), ((474.4, 420, 138), (500, 471.75, 70)),
-        ((664.16, 400, 138), (711.6, 380, 70)), ((47.44, 330, 138), (0, 330, 70)),
-    ],
-    "mover": ((569.28, 330, 136), (381, 320, 0)),
-    "gobo": ((379.52, 300, 136), (381, 318, 0)),
-    "highbay_drop": 6.0,              # [P] two rows of three (data/space.json HB-1..6), 6in below chords
-    "highbay_north_min_y": 237.75,
+    # ---- fixture library, strips, pucks, washes, mover, gobo, high bays, table packages and scenes come from
+    #      data/lighting.json (load_plan_data below), shared with build_scene.py / render.py / validate.py.
+    "strip_seg": 6.0,                 # analytic discretisation of strips (in)
 
     # ---- golf sim bay (brief section 7), shop frame inches
     "golf": {
@@ -162,13 +129,6 @@ PARAMS = {
     "counter_target": 500.0,
     "counter_region": (315, 447, 238.25, 261.75, 36.0), "sink_cut": (366, 396, 241.5, 258.5),
 
-    # ---- packages (8 heads each)
-    "packages": {
-        "VALUE": {"fixture": "CHG", "cost": 2020, "ccts": [3000] * 8},
-        "MID": {"fixture": "SBL", "cost": 3910, "ccts": [3000, 4000] * 4},
-        "PREMIUM": {"fixture": "SILO", "cost": 9250, "ccts": [2700, 4000] * 4, "louver": True},
-    },
-
     # ---- haze
     "haze_densities": [0.005, 0.01, 0.02], "haze_anisotropy": 0.6, "haze_step_rate": 1.5,
     "haze_contrast_min": 0.5,         # beam / background luminance (Weber) for "clearly visible" [P]
@@ -178,27 +138,6 @@ PARAMS = {
     "res": (1280, 720), "samples": 256, "final": False, "samples_final": 1024,
     "measure_samples": 512, "render_option": "auto", "render_case": "A",
 
-    # ---- scenes: layer -> fraction | {"f", "cct" | "rgb", "anim"}, "ev" exposure, "haze"
-    "scenes": {
-        "game_night": {"TABLE": {"f": 1.0, "cct": 3000}, "UC": 0.25, "GR": 0.25, "WW": 0.25, "UP": 0.2, "PUCK": 0.25, "ev": 3.0},
-        "lan_party": {"HB_N": 0.15, "TABLE": {"f": 0.6, "cct": 4000}, "UP": {"f": 0.9, "rgb": (0.25, 0.35, 1.0)},
-                      "PUCK": {"f": 0.8, "rgb": (0.7, 0.15, 1.0)}, "GR": {"f": 0.3, "rgb": (0.1, 0.8, 1.0)}, "ev": 3.0},
-        "movie": {"TOE": 0.1, "BIAS": {"f": 0.1, "cct": 6500}, "ev": 6.0},
-        "cooking": {"UC": {"f": 1.0, "cct": 3500}, "HB_N": 0.3, "ev": 1.5},
-        "all_on": {"HB_N": 1, "HB_S": 1, "TABLE": 1, "UC": 1, "GR": 1, "WW": 1, "UP": 1, "PUCK": 1, "TOE": 1, "BIAS": 1, "WASH": 1,
-                   "HIT": 1, "AMB": 1, "ev": 0.0},
-        "sim_play": {"HIT": {"f": 1.0, "cct": 4000}, "AMB": 0.15, "PROJ": 0.35, "ev": 3.0},
-        "sim_social": {"HIT": {"f": 0.6, "cct": 4000}, "AMB": 0.3, "PROJ": 0.35, "ev": 3.0},
-        "sim_movie": {"PROJ": 0.35, "ev": 4.0},
-        "theme_tavern": {"TABLE": {"f": 1.0, "cct": 2700}, "WASH": {"f": 0.7, "rgb": (1.0, 0.45, 0.08)},
-                         "PUCK": {"f": 0.6, "cct": 2200, "anim": "flicker"}, "UP": {"f": 0.3, "rgb": (1.0, 0.5, 0.1)}, "haze": True, "ev": 3.0},
-        "theme_dungeon": {"TABLE": {"f": 0.8, "cct": 3000}, "WASH": {"f": 0.8, "rgb": (0.0, 0.55, 0.5), "anim": "pulse_slow"},
-                          "GOBO": {"f": 1.0, "cct": 4500}, "PUCK": {"f": 0.15, "rgb": (0.1, 0.4, 1.0)}, "haze": True, "ev": 3.5},
-        "theme_boss": {"TABLE": {"f": 1.0, "cct": 4000}, "WASH": {"f": 1.0, "rgb": (1.0, 0.02, 0.0), "anim": "pulse_fast"},
-                       "MOVER": {"f": 1.0, "cct": 6000, "anim": "sweep"}, "haze": True, "ev": 3.0},
-        "theme_magic": {"TABLE": {"f": 1.0, "cct": 3500}, "WASH": {"f": 0.9, "seat_colors": True}, "PUCK": {"f": 0.2, "cct": 4000},
-                        "haze": True, "ev": 3.0},
-    },
     "deck_colors": {"white": (1.0, 0.95, 0.85), "blue": (0.05, 0.25, 1.0), "black": (0.35, 0.0, 0.6),
                     "red": (1.0, 0.05, 0.02), "green": (0.05, 0.9, 0.15)},
 
@@ -209,6 +148,56 @@ PARAMS = {
     },
 }
 P = PARAMS
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))  # common.py, lighting_plan.py
+import lighting_plan as LP  # noqa: E402
+
+
+def load_plan_data():
+    """Fixture library, light layers, table packages and scenes from data/lighting.json into P."""
+    d = LP.load()
+    P["plan_data"] = d
+    meta_keys = ("role", "status", "url", "note")
+    P["fixtures"] = {k: {kk: vv for kk, vv in v.items() if kk not in meta_keys} for k, v in d["fixture_types"].items()}
+    lay = d["layers"]
+    P["strips"] = {k: {"lmft": v["lm_per_ft"], "cct": v["cct"], "runs": [(tuple(r["p0"]), tuple(r["p1"])) for r in v["runs"]],
+                       "normal": tuple(v["normal"])} for k, v in lay.items() if v["kind"] == "strip"}
+    pk = lay["PUCK"]
+    P["pucks"] = {"columns": [c["x"] for c in pk["columns"]], "spacing": pk["spacing"], "y0": pk["y0"], "y1": pk["y1"], "z": pk["z"]}
+    P["washes"] = [(tuple(s_["mount"]), tuple(s_["aim"])) for s_ in lay["WASH"]["spots"]]
+    P["wash_fixture"] = lay["WASH"].get("fixture", "WASH")
+    P["mover"] = tuple(tuple(lay["MOVER"]["spots"][0][k]) for k in ("mount", "aim"))
+    P["gobo"] = tuple(tuple(lay["GOBO"]["spots"][0][k]) for k in ("mount", "aim"))
+    P["packages"] = {k: {"fixture": v["fixture"], "cost": v["cost_usd"], "ccts": list(v["ccts"]), **({"louver": True} if v.get("louver") else {})}
+                     for k, v in d["table_packages"].items()}
+    P["scenes"] = {k: dict(v["levels"], **{kk: v[kk] for kk in ("ev", "haze") if kk in v}) for k, v in d["scenes"].items()}
+
+
+def save_plan_heads(layouts):
+    """Write the optimised heads (door state P["design_door_open"]) back into data/lighting.json plans."""
+    d = LP.load()
+    n = 0
+    for pid, plan in d["plans"].items():
+        tb = plan.get("table")
+        if not tb or tb.get("heads_from") != "optimiser":
+            continue
+        for case, c in tb["cases"].items():
+            key = f"{tb['package']}_OPT_{case}_{tb.get('opener', 'jackshaft')}"
+            lay = layouts.get(key)
+            if not lay:
+                continue
+            c["table_center"] = [round(float(v), 3) for v in table_center(case)]
+            c["dim"] = round(float(lay.get("dim", 1.0)), 3)
+            c["heads"] = [{"tag": h["tag"], "mount": [round(float(v), 3) for v in h["mount"]],
+                           "aim": [round(float(v), 3) for v in h["aim"]], "cct": h["cct"]} for h in lay["heads"]]
+            n += 1
+        tb["door"] = "open" if P["design_door_open"] else "closed"
+    d["meta"]["updated"] = time.strftime("%Y-%m-%d")
+    LP.save(d)
+    print(f"PLAN HEADS -> data/lighting.json ({n} cases)")
+
+
+load_plan_data()
 
 
 # ============================================================================ helpers
@@ -764,7 +753,7 @@ def remap_materials():
     blk = principled("L_flat_black", hex_rgb(M["flat_black"][0]), M["flat_black"][1])
     wall = principled("L_ext_wall", hex_rgb(M["ext_wall"][0]), M["ext_wall"][1])
     part = principled("L_partition", hex_rgb(M["partition"][0]), M["partition"][1])
-    flr = principled("L_floor_flake", hex_rgb(M["floor"][0]), M["floor"][1])
+    # the slab keeps build_scene's Simiron "Domino" chip finish (owner 2026-11-24); M["floor"] stays as the brief's stand-in
     cab = principled("L_cabinet", hex_rgb(M["cabinet"][0]), M["cabinet"][1])
     ctr = principled("L_counter", hex_rgb(M["counter"][0]), M["counter"][1])
     glass = bpy.data.materials.new("L_glass")
@@ -778,7 +767,7 @@ def remap_materials():
     o = nt.nodes.new("ShaderNodeOutputMaterial")
     nt.links.new(g.outputs[0], o.inputs["Surface"])
     rules = [(("truss", "roof", "framing_black", "ceiling"), blk), (("wall_foam", "spray_foam"), wall),
-             (("iw_paint",), part), (("slab",), flr), (("glass",), glass), (("fi_K-TOP",), ctr),
+             (("iw_paint",), part), (("glass",), glass), (("fi_K-TOP",), ctr),
              (("fi_K-B", "fi_K-DB", "fi_K-SB", "fi_K-W36", "fi_K-WINE"), cab)]
     swapped = {}
     for ob in bpy.context.scene.objects:
@@ -924,7 +913,7 @@ def stage_build():
     sc = bpy.context.scene
     calib = cal()
     # --- drop diagram-only content: scans/zones/labels, clearances, door envelopes
-    for cname in ("Reference", "Clearances"):
+    for cname in ("Reference", "Clearances", "Lighting"):  # Lighting = build_scene's plan fixtures; this script builds its own
         cc = bpy.data.collections.get(cname)
         if cc:
             for ob in list(cc.all_objects):
@@ -936,7 +925,7 @@ def stage_build():
     for ob in list(sc.objects):
         if ob.type == "LIGHT":
             bpy.data.objects.remove(ob)
-    # the model's OH-2 tracks are a builder default (z ~104); the brief's tracks at panel height replace them
+    # the model's OH-2 tracks are replaced by this script's door hardware (same standard-lift height, plus hangers)
     for nm in ("TRACK_OH-2",):
         if nm in bpy.data.objects:
             bpy.data.objects.remove(bpy.data.objects[nm])
@@ -1029,12 +1018,13 @@ def stage_build():
 
 
 def highbays():
+    """(id, x, y, z) of the existing high bays: positions from data/space.json, the list from data/lighting.json."""
     shop = json.loads((ROOT / "data" / "space.json").read_text())
-    out = []
-    for it in shop["ceiling_items"]:
-        if it.get("type") == "light" and it["id"].startswith("HB-"):
-            out.append((it["id"], float(it["x"]), float(it["y"]), P["chord_z"] - P["highbay_drop"]))
-    return out
+    return [(h["id"], h["x"], h["y"], h["z"]) for h in LP.highbays(P["plan_data"], shop)]
+
+
+def highbay_layer(hid):
+    return next(e["layer"] for e in P["plan_data"]["existing"] if e["id"] == hid)
 
 
 def static_sources():
@@ -1051,14 +1041,12 @@ def static_sources():
         src.append({"layer": layer, "id": sid, "L": L, "axis": ax, "kind": kind, "hb": hb, "cut": cut, "I0": I0, "fx": fk,
                     "cct": cct or fx["cct"], "radius": fx["radius"]})
     for hid, x, y, z in highbays():
-        lay = "HB_N" if y > P["highbay_north_min_y"] else "HB_S"
+        lay = highbay_layer(hid)
         spot(lay, hid, (x, y, z), (x, y, 0), "HB")
-    tx = dict(zip([f"T{i:02d}" for i in range(16)], P["truss_x"]))
     k = 0
-    for ch in P["pucks"]["chords"]:
+    for x in P["pucks"]["columns"]:
         y = P["pucks"]["y0"]
         while y <= P["pucks"]["y1"] + 1e-6:
-            x = tx[ch]
             pos = (x, y, P["pucks"]["z"])
             lo = np.array(pos) - [1, 1, 0.8]
             hi = np.array(pos) + [1, 1, 0]
@@ -1067,7 +1055,7 @@ def static_sources():
                 k += 1
             y += P["pucks"]["spacing"]
     for i, (mnt, aim) in enumerate(P["washes"]):
-        spot("WASH", f"WASH-{i}", mnt, aim, "WASH")
+        spot("WASH", f"WASH-{i}", mnt, aim, P["wash_fixture"])
     spot("MOVER", "MOVER", *P["mover"], "MOVER")
     spot("GOBO", "GOBO", *P["gobo"], "GOBO")
     # strips -> Lambertian segments
@@ -2352,6 +2340,28 @@ def golf_analyze(eng):
     return out
 
 
+def plan_layouts(eng, gctx):
+    """Heads of manual plans (owner-placed) as sim layouts '<PKG>_PLAN_<case>_<opener>', dimmed like the optimiser."""
+    out = {}
+    for pid, plan in LP.load()["plans"].items():
+        tb = plan.get("table")
+        if not tb or tb.get("heads_from") != "manual" or tb["package"] not in P["packages"]:
+            continue
+        pkg, opener = tb["package"], tb.get("opener", "jackshaft")
+        fx_key = P["packages"][pkg]["fixture"]
+        for case, c in tb["cases"].items():
+            heads = []
+            for h in c["heads"]:
+                hg = head_geometry(h["mount"][:2], [h["aim"][0], h["aim"][1], P["table_z"]], fx_key)
+                hg["tag"], hg["cct"] = h["tag"], h["cct"]
+                heads.append(hg)
+            E0, _ = eval_layout(eng, heads, fx_key, case, False, opener, gctx[case])
+            mean_full = float(E0[gctx[case][3]].mean())
+            dim = min(1.0, P["dim_target"] / mean_full) if mean_full > 550 else 1.0
+            out[f"{pkg}_PLAN_{case}_{opener}"] = {"heads": heads, "naive_clashes": [], "dim": dim, "plan": pid}
+    return out
+
+
 # ============================================================================ stage: analyze
 def stage_analyze():
     t0 = time.time()
@@ -2376,6 +2386,10 @@ def stage_analyze():
                 key = f"{pkg}_OPT_{case}_{opener}"
                 layouts[key] = {"heads": heads, "naive_clashes": [], "J": J, "dim": dim, "hist": hist[::10]}
                 print(f"OPT {key}: J {hist[0]:.3f} -> {J:.3f} in {time.time() - t:.0f}s")
+    # ---- manual plan layouts (data/lighting.json plans with heads_from "manual"), e.g. the owner's chosen plan
+    for key, lay in plan_layouts(eng, gctx).items():
+        layouts[key] = lay
+        print(f"PLAN {key}: {len(lay['heads'])} heads, dim {lay['dim']:.2f}")
     # ---- evaluate every layout x door state
     static_flags = fixture_clash_report()
     for key, lay in layouts.items():
@@ -2387,7 +2401,7 @@ def stage_analyze():
             E0, E1 = eval_layout(eng, heads, fx_key, case, door_open, opener, gctx[case])
             mask = gctx[case][3]
             mean_full = float(E0[mask].mean())
-            dim = lay.get("dim", 1.0) if kind_l == "OPT" else 1.0
+            dim = lay.get("dim", 1.0) if kind_l in ("OPT", "PLAN") else 1.0
             mt = metrics(E0, E1, mask, dim)
             # game night at 3000 K with fixed-CCT circuits
             ccts = [h["cct"] for h in heads]
@@ -2431,7 +2445,7 @@ def stage_analyze():
     # ---- add optimised collections to the blend
     ctab = bpy.data.collections["TABLE_OPTIONS"]
     for key, lay in layouts.items():
-        if "_OPT_" in key:
+        if "_OPT_" in key or "_PLAN_" in key:
             build_table_collection(key, lay["heads"], ctab, calib, ies_dir)
     # ---- indirect layers
     counter = counter_eval(eng)
@@ -2462,6 +2476,7 @@ def stage_analyze():
                                                 "sensitivity": sens, "crosscheck": xc, "static_clashes": static_flags, "golf": golf,
                                                 "fixtures": {k: dict(zip(("kind", "hb", "cut", "I0", "flux"), fixture_profile(v))) for k, v in P["fixtures"].items()},
                                                 "runtime_s": time.time() - t0})
+    save_plan_heads(layouts)
     bpy.ops.wm.save_mainfile()
     print(f"ANALYZE OK in {time.time() - t0:.0f}s")
 
@@ -2552,6 +2567,9 @@ def stage_render():
     rows = an["rows"]
     # pick the render option
     opt = P["render_option"]
+    dp = LP.load()["plans"].get(LP.load()["meta"].get("default_plan", ""), {}).get("table", {})
+    if opt == "auto" and dp.get("heads_from") == "manual" and any(r["layout"] == "PLAN" and r["option"] == dp["package"] for r in rows):
+        opt = f"{dp['package']}_PLAN_{P['render_case']}_jackshaft"
     if opt == "auto":
         cand = [r for r in rows if r["layout"] == "OPT" and r["case"] == P["render_case"] and r["door"] == DSTATE() and r["opener"] == "jackshaft"]
         best = max(cand, key=lambda r: r["uniformity"] - r["shadow_area_lt70_pct"] / 100 - 0.05 * r["glare_direct"] - r["cost_usd"] / 1e5)
@@ -2805,8 +2823,7 @@ def haze_test(sc, rdir, opt):
     set_active(sc, "A", "jackshaft", opt, door_open=False, haze=True)
     cam = bpy.data.objects["CAM_entry"]
     keep = cam.matrix_world.copy()
-    tx = dict(zip([f"T{i:02d}" for i in range(16)], P["truss_x"]))
-    chx = tx[P["pucks"]["chords"][0]]
+    chx = P["pucks"]["columns"][0]
     place_cam(cam, (chx + 70, 300, 50), (chx, 360, 112))
     sc.camera = cam
     sc.frame_set(24)

@@ -111,12 +111,25 @@ front/side/top/iso sheet with the inventory box as an orange wireframe and a red
 - `render.py`: Workbench diagram look (fast, no lighting) or `--look photo` (EEVEE/Cycles with procedural materials sampled from
   the scan/vendor colours). Views: plan, 4 corner isos, eye-level views looking both ways, named room views, scan overlay.
   Each run also writes a versioned snapshot to `renders/<layout>/versions/vNN-<tag>/`.
-- Make targets: `setup validate build render photo scan-views asset-import asset-preview scan-import splat-mesh scan-todo all clean`, with knobs
-  `LAYOUT=`, `SCAN=0`, `ASSETS=0`, `VERSION=`, `ENGINE=cycles`, `ITEM=`, `SRC=`, `ARGS=`.
+- Make targets: `setup validate build render photo lighting-options scan-views asset-import asset-preview scan-import splat-mesh scan-todo all clean`, with knobs
+  `LAYOUT=`, `SCAN=0`, `ASSETS=0`, `VERSION=`, `ENGINE=cycles`, `ITEM=`, `SRC=`, `ARGS=`, `LIGHTING=`, `SCENE=`.
+
+### 6a. Lighting plans (`data/lighting.json`, optional)
+A fixture catalogue (`fixture_types`: lumens, beam, peak cd, CCT), `controls` (switches/dimmers, optionally tied to an
+`electrical.json` circuit), `existing` fixtures (their positions stay in `space.json` `ceiling_items`, referenced by
+`shop_ref`), `layers` (kind `existing`, `table`, `strip`, `puck_grid`, `spots`), named `plans` (a list of layers, plus an
+optional table-spot package with head positions per table placement) and `scenes` (a level 0-1, CCT or RGB per layer).
+`scripts/lighting_plan.py` is the shared reader (plain Python). `build_scene.py` draws every plan as a `LIGHT_<plan>`
+collection (housings + Blender lights); only the layout's plan renders. `render.py --lighting <plan> --scene <scene>`
+renders it at night to `renders/<layout>/lighting/<plan>__<scene>__<view>.png` (EEVEE, for looks; numbers come from a
+lighting study such as `extras/lighting/`). `validate.py` checks every reference (fixtures, layers, controls, circuits,
+ceiling items) and warns when a layout's table doesn't match a plan's table case. Example: two existing shop lights plus
+bench spots and a strip in the example garage.
 
 ## 7. Multi-agent / multi-tool workflow
-Worked on by several AI tools (Claude Code, Antigravity) in parallel, so **memory lives in the repo, not in any chat**:
-- `AGENTS.md` (tool-neutral rules; `CLAUDE.md` just includes it). `CONTEXT.md` holds stable facts, conventions, and a table of known facts with their confidence.
+Worked on by several AI tools (Claude Code, Antigravity, others) in parallel, so **memory lives in the repo, not in any
+chat**. How to use each tool with it: `docs/AGENT-TOOLS.md`.
+- `AGENTS.md` (tool-neutral rules; `CLAUDE.md` and `GEMINI.md` just include it). `CONTEXT.md` holds stable facts, conventions, and a table of known facts with their confidence.
 - `.agents/HANDOFF.md`: current state, next 3 steps, blockers (rewritten at the end of every session, under 30 lines).
 - `.agents/history/YYYY-MM-DD-<tool>-<topic>.md`: Goal / Done / Decisions / Open, under 40 lines, **append-only**.
 - Rule: if HANDOFF disagrees with the code or data, trust the code and fix HANDOFF.
@@ -127,10 +140,12 @@ Worked on by several AI tools (Claude Code, Antigravity) in parallel, so **memor
 
 ## 8. Extending it
 New questions become new scripts that read the same data files, never a separate model. Examples in `extras/`:
-- `extras/lighting/lighting.py`: copies a built layout into a metric scene, places fixture options, computes lux / shadow /
-  glare analytically (BVH ray casts), cross-checks with Cycles renders, and writes a report.
+- `extras/lighting/lighting.py`: copies a built layout into a metric scene, places the fixtures of the plans in
+  `data/lighting.json`, computes lux / shadow / glare analytically (BVH ray casts), optimises table-spot aiming (and
+  writes the heads back to `lighting.json`), cross-checks with Cycles renders, and writes a report.
 - `extras/electrical/blueprint.py`: reads planned circuits and boxes from `data/electrical.json` and draws to-scale wall
-  elevations and schedules (PDF/SVG/DXF), warning on boxes that land in door paths, on trim, or back-to-back.
+  elevations and schedules (PDF/SVG/DXF), warning on boxes that land in door paths, on trim, on a stud, or back-to-back;
+  plus home-run routing plans (top view and wiring diagrams with cable lengths and voltage drop).
 Both are hard-wired to the original shop and are meant as worked examples for the agent to adapt.
 
 ## 9. Origin

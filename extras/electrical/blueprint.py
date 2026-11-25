@@ -16,7 +16,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))  # common.py, lighting_plan.py
 from common import ROOT, load, layout_path  # noqa: E402
 
 SHEET_W, SHEET_H = 36.0, 24.0          # ARCH D, inches
@@ -380,7 +380,7 @@ def draw_elevation(sheet, view, face, title, wall, elec, ctx, compass):
            size=7, color=GRAY, layer="NOTE")
 
 
-def title_block(sheet, number, title, layout, warn_count):
+def title_block(sheet, number, title, layout, warn_count, scale=None, legend=None, notes=None):
     s = sheet
     s.rect(0.5, 0.5, SHEET_W - 1, SHEET_H - 1, lw=1.5, layer="BORDER")
     x0 = SHEET_W - 4.5
@@ -391,8 +391,8 @@ def title_block(sheet, number, title, layout, warn_count):
     s.rect(tx, SHEET_H - 2.25, 3.9, 0.5, lw=0.8, color=RED, layer="TITLE")
     s.text(tx + 1.95, SHEET_H - 2.07, "DRAFT - NOT FOR CONSTRUCTION", size=9, bold=True, anchor="middle", color=RED,
            layer="TITLE")
-    rows = [("Sheet", title), ("Date", date.today().isoformat()), ("Scale", "1/2\" = 1'-0\" on 36x24 (ARCH D)"),
-            ("", "Half-size on 11x17 = 1/4\" = 1'-0\""), ("Context layout", layout or "none"),
+    rows = [("Sheet", title), ("Date", date.today().isoformat()), ("Scale", scale or "1/2\" = 1'-0\" on 36x24 (ARCH D)"),
+            ("", "Half-size on 11x17" if scale else "Half-size on 11x17 = 1/4\" = 1'-0\""), ("Context layout", layout or "none"),
             ("Source", "data/space.json, data/electrical.json"), ("Generator", "scripts/blueprint.py (make blueprint)"),
             ("Checks", f"{warn_count} warning(s)")]
     y = SHEET_H - 2.8
@@ -404,7 +404,7 @@ def title_block(sheet, number, title, layout, warn_count):
     y -= 0.25
     s.text(tx, y, "LEGEND", size=9, bold=True, layer="TITLE")
     y -= 0.32
-    items = [("rec", "Receptacle box (plate size, to scale)"), ("sw", "Switch box"), ("rcs", "Recessed box (TV kit)"),
+    items = legend or [("rec", "Receptacle box (plate size, to scale)"), ("sw", "Switch box"), ("rcs", "Recessed box (TV kit)"),
              ("ex", "Existing device"), ("lv", "Low voltage (Cat6 / conduit)"), ("ko", "Barn-door slide: no boxes"),
              ("ctx", "Cabinets / equipment (dashed = movable)"), ("trim", "Board-and-batten trim (N face)"),
              ("stud", "Stud, ID no. (LiDAR, +/-2in; tape-check)")]
@@ -432,26 +432,49 @@ def title_block(sheet, number, title, layout, warn_count):
             s.rect(tx + 0.05, cy - 0.08, 0.25, 0.16, lw=0.3, color=LIGHT, layer="TITLE")
         elif kind == "stud":
             s.rect(tx + 0.15, cy - 0.1, 0.05, 0.2, lw=0.4, color=STUD, dash=True, layer="TITLE")
+        elif kind == "truss":
+            s.line(tx + 0.05, cy, tx + 0.3, cy, lw=0.4, color=GRAY, dash=True, layer="TITLE")
+        elif kind == "ah":
+            s.rect(tx + 0.05, cy - 0.08, 0.25, 0.16, lw=0.4, color=GRAY, layer="TITLE")
+            s.line(tx + 0.05, cy - 0.08, tx + 0.21, cy + 0.08, lw=0.3, color=GRAY, layer="TITLE")
+        elif kind == "cable":
+            s.line(tx + 0.05, cy, tx + 0.3, cy, lw=1.2, color=BLUE, layer="TITLE")
+        elif kind == "drop":
+            s.line(tx + 0.05, cy, tx + 0.18, cy, lw=1.2, color=BLUE, layer="TITLE")
+            s.rect(tx + 0.16, cy - 0.04, 0.08, 0.08, lw=0.5, fill=BLUE, color=BLUE, layer="TITLE")
+        elif kind == "arrow":
+            s.line(tx + 0.05, cy, tx + 0.3, cy, lw=1.0, layer="TITLE")
+            s.line(tx + 0.3, cy, tx + 0.22, cy + 0.05, lw=1.0, layer="TITLE")
+            s.line(tx + 0.3, cy, tx + 0.22, cy - 0.05, lw=1.0, layer="TITLE")
+        elif kind in ("tick2", "tick3"):
+            s.line(tx + 0.02, cy, tx + 0.33, cy, lw=0.6, layer="TITLE")
+            n = 2 if kind == "tick3" else 1
+            for i in range(n):
+                s.line(tx + 0.08 + i * 0.06, cy - 0.07, tx + 0.11 + i * 0.06, cy + 0.07, lw=0.6, layer="TITLE")
+            xn = tx + 0.08 + n * 0.06
+            s.line(xn, cy - 0.035, xn + 0.015, cy + 0.035, lw=0.6, layer="TITLE")
+            s.rect(xn + 0.05, cy - 0.02, 0.04, 0.04, lw=0.4, fill=BLACK, layer="TITLE")
         s.text(tx + 0.45, y, label, size=6.5, layer="TITLE")
         y -= 0.27
-    y -= 0.05
-    s.text(tx, y, "Tag (above each box):", size=6.5, color=GRAY, layer="TITLE")
-    s.text(tx + 1.6, y + 0.17, "K2", size=5.5, anchor="middle", layer="TITLE")
-    s.text(tx + 1.6, y + 0.07, "7", size=6.5, anchor="middle", bold=True, color=BLUE, layer="TITLE")
-    s.text(tx + 1.6, y - 0.03, "@3'-6\"", size=5, anchor="middle", layer="TITLE")
-    s.text(tx + 1.9, y + 0.17, "box ID", size=5.5, color=GRAY, layer="TITLE")
-    s.text(tx + 1.9, y + 0.07, "circuit number(s)", size=5.5, color=GRAY, layer="TITLE")
-    s.text(tx + 1.9, y - 0.03, "height to centre", size=5.5, color=GRAY, layer="TITLE")
+    if legend is None:
+        y -= 0.05
+        s.text(tx, y, "Tag (above each box):", size=6.5, color=GRAY, layer="TITLE")
+        s.text(tx + 1.6, y + 0.17, "K2", size=5.5, anchor="middle", layer="TITLE")
+        s.text(tx + 1.6, y + 0.07, "7", size=6.5, anchor="middle", bold=True, color=BLUE, layer="TITLE")
+        s.text(tx + 1.6, y - 0.03, "@3'-6\"", size=5, anchor="middle", layer="TITLE")
+        s.text(tx + 1.9, y + 0.17, "box ID", size=5.5, color=GRAY, layer="TITLE")
+        s.text(tx + 1.9, y + 0.07, "circuit number(s)", size=5.5, color=GRAY, layer="TITLE")
+        s.text(tx + 1.9, y - 0.03, "height to centre", size=5.5, color=GRAY, layer="TITLE")
     # notes
     y -= 0.5
     s.text(tx, y, "GENERAL NOTES", size=9, bold=True, layer="TITLE")
-    notes = [
+    notes = notes or [
         "1. All 120V receptacles GFCI protected (detached building).",
-        "   Use GFCI/dual-function breakers for boxes behind",
-        "   appliances and TVs.",
+        "   GFCI receptacles where reachable; GFCI breakers for",
+        "   the boxes behind the TV / console (10, 11, 12).",
         "2. One home run per circuit, no shared neutrals. 20A /",
-        "   12 AWG unless noted; 10 AWG for 1, 2, 13 (long runs);",
-        "   15A / 14 AWG for 9. See schedule (E2).",
+        "   12 AWG on every 20A circuit (incl. the ~85ft runs",
+        "   1, 2, 13); 15A / 14 AWG for 9. See schedule (E2).",
         "3. Countertop circuits 7 and 8 alternate and feed nothing",
         "   else (no lighting). No counter point > 24\" from a box.",
         "4. Hatched zones: barn-door slab path. Before rough-in,",
@@ -548,6 +571,329 @@ def sheet_e2(elec, wall, layout, warns):
     for i, w in enumerate(warns or ["No boxes in door slide zones, on trim, or within 6\" of an opening."]):
         s.text(1.0, y - 0.9 - i * 0.2, ("! " if warns else "") + w, size=7.5, color=RED if warns else BLACK, layer="TABLE")
     title_block(s, "E2", "E2 - Circuit + box schedules", layout, len(warns))
+    return s
+
+
+# --------------------------------------------------------------- routing (E3/E4)
+OHM_KFT = {14: 3.07, 12: 1.93, 10: 1.21}   # uncoated copper, NEC Ch. 9 Table 8
+CABLE_COLORS = ["#1f5fa8", "#c0392b", "#2e8b57", "#8e44ad", "#d35400", "#16a085", "#7f6000", "#c2185b",
+                "#2c3e50", "#6d8f00", "#b03a2e", "#1a7f9c", "#9c640c", "#5b2c6f", "#117a65", "#a04000"]
+
+
+def trusses(shop):
+    return {t["id"]: t["x"] for t in shop.get("ceiling_items", []) if t.get("type") == "truss"}
+
+
+def mount_stud(b, wall):
+    """x of the stud a box nails to (its cable comes down beside it)."""
+    st = [s for s in studs(wall) if s[1] <= b["z"] <= s[2]]
+    return min(st, key=lambda s: abs(s[0] - b["x"])) if st else (b["x"], 0, 0, "", "")
+
+
+def awg(cable):
+    return int(cable.split("/")[0])
+
+
+def cable_runs(elec, wall, shop):
+    """Per plan: list of dicts with geometry + lengths (inches) for every cable."""
+    rt, tr = elec["routing"], trusses(shop)
+    boxes = {b["id"]: b for b in elec["boxes"]}
+    out = {}
+    for plan in rt["plans"]:
+        rows = []
+        for c in plan["cables"]:
+            first = boxes[c["start"]]
+            sx, _, _, sid, _ = mount_stud(first, wall)
+            tx = tr[c["truss"]]
+            up = rt["header_z"] - rt["panel_top_z"]
+            hdr = rt["panel_x"] - tx
+            along = rt["wall_y"] + (rt["top_plate_z"] - rt["header_z"])
+            plate = abs(sx - tx)
+            down = rt["top_plate_z"] - (first["z"] + 2)
+            home = rt["slack_panel"] + up + hdr + along + plate + down + rt["slack_box"]
+            links, far = [], {c["start"]: home}
+            for lk in c["links"]:
+                a, b = boxes[lk[0]], boxes[lk[1]]
+                L = abs(a["x"] - b["x"]) + abs(a["z"] - b["z"]) + 2 * rt["slack_box"]
+                links.append((lk[0], lk[1], lk[2] if len(lk) > 2 else c["cable"], L))
+                far[lk[1]] = far.get(lk[0], home) + L
+            amps = 20 if "20A" in c["breaker"] else 15
+            ft = max(far.values()) / 12
+            vd = 2 * ft * amps * 0.8 * OHM_KFT[awg(c["cable"])] / 1000 / 120 * 100
+            rows.append(dict(c, tx=tx, sx=sx, sid=sid, home=home, links_=links, total=home + sum(l[3] for l in links),
+                             far_ft=ft, vd=vd, mwbc=len(c["circuits"]) > 1))
+        out[plan["id"]] = (plan, rows)
+    return out
+
+
+def materials(rows):
+    tot = {}
+    for r in rows:
+        tot[r["cable"]] = tot.get(r["cable"], 0) + r["home"]
+        for _, _, cab, L in r["links_"]:
+            tot[cab] = tot.get(cab, 0) + L
+    return {k: v / 12 for k, v in sorted(tot.items())}
+
+
+def ticks(s, x, y, n_hot, vertical, color):
+    """Conductor ticks across a run at paper (x, y): long = hot, short = neutral, dot = ground."""
+    d = 0.06
+    for i in range(n_hot + 2):
+        o = (i - (n_hot + 1) / 2) * d
+        cx, cy = (x, y + o) if vertical else (x + o, y)
+        if i < n_hot:
+            hl = 0.07
+        elif i == n_hot:
+            hl = 0.035
+        else:
+            s.rect(cx - 0.018, cy - 0.018, 0.036, 0.036, lw=0.3, fill=color, color=color, layer="TICK")
+            continue
+        if vertical:
+            s.line(cx - hl, cy - 0.02, cx + hl, cy + 0.02, lw=0.6, color=color, layer="TICK")
+        else:
+            s.line(cx - 0.02, cy - hl, cx + 0.02, cy + hl, lw=0.6, color=color, layer="TICK")
+
+
+def draw_route_plan(s, ox, oy, sc, shop, elec, wall, plan, rows, ymax=None):
+    val = lambda v: v["value"] if isinstance(v, dict) else v
+    L, Wd = val(shop["shell"]["length_x"]), val(shop["shell"]["width_y"])
+    top = ymax or Wd
+    P = lambda x, y: (ox + x * sc, oy + y * sc)
+    def ln(x1, y1, x2, y2, **k):
+        a, b = P(x1, y1), P(x2, y2)
+        s.line(a[0], a[1], b[0], b[1], **k)
+    def rc(x0, y0, x1, y1, **k):
+        a, b = P(x0, y0), P(x1, y1)
+        s.rect(a[0], a[1], b[0] - a[0], b[1] - a[1], **k)
+    rt = elec["routing"]
+    ln(0, 0, L, 0, lw=1.4, layer="WALL")
+    ln(0, 0, 0, top, lw=1.4, layer="WALL")
+    ln(L, 0, L, top, lw=1.4, layer="WALL")
+    if top < Wd:   # break line: the north half is cut off (no routing there)
+        ln(0, top, L, top, lw=0.4, color=GRAY, dash=True, layer="WALL")
+        s.text(*P(L / 2, top + 4), "N half not shown (no runs)", size=5.5, anchor="middle", color=GRAY, layer="NOTE")
+    # centre wall (solid sections)
+    yc, t = wall["y1"], wall["thickness"]
+    for a, b in solid_sections(wall):
+        rc(a, yc - t / 2, b, yc + t / 2, lw=0.6, fill="#d9d9d9", color=GRAY, layer="WALL")
+    # air handler platform
+    ah = next((c for c in shop.get("ceiling_items", []) if c.get("id") == "AH-PLAT"), None)
+    if ah:
+        x0, x1, y0, y1 = ah["x"] - ah["w"] / 2, ah["x"] + ah["w"] / 2, ah["y"] - ah["d"] / 2, ah["y"] + ah["d"] / 2
+        rc(x0, y0, x1, y1, lw=0.5, color=GRAY, layer="CONTEXT")
+        c = y0
+        while c < y1:
+            ln(x0, c, x1, min(c + (x1 - x0), y1), lw=0.25, color=LIGHT, layer="CONTEXT")
+            c += 12
+        s.text(*P((x0 + x1) / 2, y1 - 30), "AIR HANDLER", size=4.5, anchor="middle", rot=90, color=GRAY, layer="CONTEXT")
+    # trusses
+    for tid, tx in trusses(shop).items():
+        ln(tx, 0, tx, top, lw=0.35, color=GRAY, dash=True, layer="TRUSS")
+        if 0 < tx < L:
+            s.text(*P(tx, top + 12), f"{tid}  {fmt(tx)}", size=5.5, anchor="middle", color=GRAY, layer="TRUSS")
+    # panel
+    pan = next(w for w in shop["wall_items"] if w["id"] == rt["panel"])
+    px0 = wall["x2"] - pan["offset"] - pan["w"] / 2
+    rc(px0, -6, px0 + pan["w"], 0, lw=0.6, fill="#222222", layer="PANEL")
+    s.text(*P(px0 + pan["w"] / 2, -16), f"{rt['panel']} 200A", size=6, anchor="middle", bold=True, layer="PANEL")
+    # boxes
+    for b in elec["boxes"]:
+        fy = yc + t / 2 + 4 if b["face"] == "N" else yc - t / 2 - 4
+        rc(b["x"] - 2.5, fy - 2.5, b["x"] + 2.5, fy + 2.5, lw=0.4, fill="#ffffff", layer="BOX")
+        s.text(*P(b["x"], fy + (5 if b["face"] == "N" else -9)), b["id"], size=4, anchor="middle", layer="BOX")
+    # cables: header lanes ordered so nothing crosses (west-most truss = southern-most lane)
+    order = sorted(rows, key=lambda r: (r["tx"], r["id"]))
+    lane = {r["id"]: i for i, r in enumerate(order)}
+    on_truss = {}
+    for r in order:
+        on_truss.setdefault(r["truss"], []).append(r["id"])
+    for r in rows:
+        col = CABLE_COLORS[(r["circuits"][0] - 1) % len(CABLE_COLORS)]
+        lw = 1.3 if r["mwbc"] else 0.8
+        k = on_truss[r["truss"]].index(r["id"])
+        n = len(on_truss[r["truss"]])
+        xo = r["tx"] + (k - (n - 1) / 2) * 3.5
+        yl = 9 + lane[r["id"]] * 3.2
+        ytop = yc - t / 2 - 2.5 - k * 2.2
+        pxm = rt["panel_x"] - 6 + lane[r["id"]] * 0.8
+        ln(pxm, 0, pxm, yl, lw=lw, color=col, layer="CABLE")
+        ln(pxm, yl, xo, yl, lw=lw, color=col, layer="CABLE")
+        ln(xo, yl, xo, ytop, lw=lw, color=col, layer="CABLE")
+        ln(xo, ytop, r["sx"], ytop, lw=lw, color=col, layer="CABLE")
+        ln(r["sx"], ytop, r["sx"], yc, lw=lw, color=col, layer="CABLE")
+        a = P(r["sx"], yc)
+        s.rect(a[0] - 0.035, a[1] - 0.035, 0.07, 0.07, lw=0.4, fill=col, color=col, layer="CABLE")
+        mx, my = P(xo, 60 + 25 * (k % 3))
+        ticks(s, mx, my, len(r["circuits"]), vertical=True, color=col)
+        lab = ",".join(str(c) for c in r["circuits"])
+        tx_, ty_ = P(xo, 120 + 22 * (k % 3))
+        s.text(tx_ - 0.03, ty_, lab, size=5.5, rot=90, bold=True, color=col, layer="CABLE")
+    # home run arrow into the panel
+    a = P(rt["panel_x"], -1)
+    s.line(a[0], a[1] + 0.25, a[0], a[1] + 0.03, lw=0.8, layer="CABLE")
+    s.line(a[0], a[1] + 0.03, a[0] - 0.04, a[1] + 0.1, lw=0.8, layer="CABLE")
+    s.line(a[0], a[1] + 0.03, a[0] + 0.04, a[1] + 0.1, lw=0.8, layer="CABLE")
+    # compass + labels
+    s.text(*P(L, top + 22), "N ↑", size=9, bold=True, anchor="end", layer="NOTE")
+    s.text(*P(L / 2, -34), "S WALL - header run (z ~136)", size=6, anchor="middle", color=GRAY, layer="NOTE")
+    s.text(*P(4, yc + 9), "CENTRE WALL (IW-1)", size=5.5, color=GRAY, layer="NOTE")
+    s.text(ox, oy + top * sc + 0.95, plan["name"].upper(), size=12, bold=True, layer="NOTE")
+    s.text(ox, oy + top * sc + 0.75, plan["note"], size=7, color=GRAY, layer="NOTE")
+
+
+def sheet_e3(shop, elec, wall, layout, runs):
+    s = Sheet("E3")
+    sc = 3 / 96
+    (pa, ra), (pb, rb) = runs["A"], runs["B"]
+    draw_route_plan(s, 1.1, 13.0, sc, shop, elec, wall, pa, ra, ymax=270)
+    draw_route_plan(s, 1.1, 2.4, sc, shop, elec, wall, pb, rb, ymax=270)
+    # per-truss and header counts beside each plan
+    for oy, (plan, rows) in ((21.4, runs["A"]), (10.8, runs["B"])):
+        ox = 23.9
+        per = {}
+        for r in rows:
+            per.setdefault(r["truss"], []).append(r)
+        trs = trusses(shop)
+        trows = []
+        for tid in sorted(per, key=lambda t: trs[t]):
+            cs = per[tid]
+            trows.append((tid, fmt(trs[tid]), ", ".join(",".join(str(c) for c in r["circuits"]) for r in cs), len(cs),
+                          ", ".join(sorted({r["sid"] for r in cs}))))
+        y = table(s, ox, oy, [("Truss", 0.6), ("x", 0.75), ("Circuits", 1.6), ("Cables", 0.6), ("Drops beside", 3.6)],
+                  trows, size=7, title=f"{plan['id']}: TRUSS RUNS")
+        n = len(rows)
+        s.text(ox, y - 0.3, f"Leaving the panel on the S header: {n} cables,", size=7, bold=True, layer="NOTE")
+        s.text(ox, y - 0.48, f"{2 * n} current-carrying conductors (a 3-wire shared-neutral", size=7, layer="NOTE")
+        s.text(ox, y - 0.66, "cable counts 2: NEC 310.15(E)(1)).", size=7, layer="NOTE")
+        s.text(ox, y - 0.9, "5+ cables touching over 24in derate 12 AWG below 20A:", size=7, color=RED, layer="NOTE")
+        s.text(ox, y - 1.08, "hold them apart in stackers, max 4 per tier.", size=7, color=RED, layer="NOTE")
+    legend = [("cable", "Home run, colour = circuit (thick = 3-wire)"), ("drop", "Drops into the wall beside this stud"),
+              ("tick2", "Ticks: long = hot, short = neutral, dot = ground"), ("tick3", "Two hots + shared neutral (3-wire)"),
+              ("arrow", "Home run to PANEL-2"), ("truss", "Truss bottom chord (LiDAR, +/-3in)"),
+              ("ah", "Air handler platform on T07/T08")]
+    notes = [
+        "1. Route: panel up to the S header, west to the truss",
+        "   nearest the first box's stud, north along the",
+        "   bottom chord, along the top plate to that stud,",
+        "   down beside the stud into the box.",
+        "2. Strap to the chord side faces; never drill or notch",
+        "   trusses. T07/T08 under the air handler: run on the",
+        "   outside faces (T07 west, T08 east).",
+        "3. Box-to-box links run through bored studs (E4).",
+        "4. Truss x from the LiDAR (+/-3in): confirm on site.",
+        "5. Ticks follow the common convention; this legend",
+        "   governs. Ground in every cable.",
+        "6. Lanes are drawn apart for clarity; in the field use",
+        "   stackers (see counts below each plan).",
+        "7. Confirm all requirements with the local inspector.",
+    ]
+    title_block(s, "E3", "E3 - Home-run routing (top view)", layout, 0, scale="3/8\" = 1'-0\" on 36x24 (ARCH D)",
+                legend=legend, notes=notes)
+    return s
+
+
+def sheet_e4(elec, wall, layout, runs):
+    s = Sheet("E4")
+    boxes = {b["id"]: b for b in elec["boxes"]}
+    circ = {c["n"]: c["name"] for c in elec["circuits"]}
+    for col, pid in ((1.0, "A"), (16.0, "B")):
+        plan, rows = runs[pid]
+        y = 22.6
+        s.text(col, y + 0.25, f"{plan['name'].upper()}: WIRING DIAGRAM", size=11, bold=True, layer="NOTE")
+        y -= 0.15
+        for r in sorted(rows, key=lambda r: r["circuits"][0]):
+            colr = CABLE_COLORS[(r["circuits"][0] - 1) % len(CABLE_COLORS)]
+            y -= 0.6
+            # breaker
+            s.rect(col, y - 0.17, 1.45, 0.42, lw=0.7, layer="DIAG")
+            s.text(col + 0.07, y + 0.08, ("CB " + " + ".join(str(c) for c in r["circuits"])), size=8, bold=True, layer="DIAG")
+            s.text(col + 0.07, y - 0.1, r["breaker"].replace(" (common trip)", ", common trip"), size=6, layer="DIAG")
+            x = col + 1.45
+            s.line(x, y + 0.03, x + 1.75, y + 0.03, lw=1.5 if r["mwbc"] else 0.9, color=colr, layer="DIAG")
+            ticks(s, x + 0.3, y + 0.03, len(r["circuits"]), vertical=False, color=colr)
+            s.text(x + 0.6, y + 0.1, f"{r['cable']}  {r['home'] / 12:.0f} ft via {r['truss']}", size=6.5, bold=True,
+                   color=colr, layer="DIAG")
+            x += 1.75
+            # box chain (tree drawn as a sequence: start then links in order)
+            seq = [r["start"]] + [l[1] for l in r["links_"]]
+            prev = {r["start"]: None}
+            for i, bid in enumerate(seq):
+                b = boxes[bid]
+                bx = x + i * 2.0
+                s.rect(bx, y - 0.17, 1.15, 0.42, lw=0.7, fill="#ffffff", layer="DIAG")
+                s.text(bx + 0.07, y + 0.08, f"{bid}  {b['face']} face", size=8, bold=True, layer="DIAG")
+                dev = "switch" if b["kind"] == "switch" else "rec."
+                s.text(bx + 0.07, y - 0.1, f"{b['gangs']}-gang {dev} @{fmt(b['z'])}", size=6, layer="DIAG")
+                if i + 1 < len(seq):
+                    lk = r["links_"][i]
+                    lx0 = bx + 1.15
+                    if lk[0] != bid:   # branch from an earlier box
+                        s.text(lx0 + 0.05, y + 0.13, f"tap from {lk[0]}", size=5.5, color=GRAY, layer="DIAG")
+                    s.line(lx0, y + 0.03, lx0 + 0.85, y + 0.03, lw=0.9 if lk[2] != r["cable"] else (1.5 if r["mwbc"] else 0.9),
+                           color=colr, layer="DIAG")
+                    s.text(lx0 + 0.05, y - 0.12, f"{lk[2]} {lk[3] / 12:.0f} ft", size=6, color=colr, layer="DIAG")
+            if r.get("note"):
+                s.text(col + 1.5, y - 0.33, r["note"][:110], size=5.5, color=GRAY, layer="DIAG")
+        # schedule
+        trows = []
+        for r in sorted(rows, key=lambda r: r["circuits"][0]):
+            names = " / ".join(circ.get(c, "?")[:22] for c in r["circuits"])
+            trows.append((r["id"], ",".join(str(c) for c in r["circuits"]), names, r["cable"], r["breaker"].replace(" (common trip)", "") + ("" if r.get("gfci") == "breaker" else " + GFCI rec."),
+                          r["truss"], f"{r['sid']} ({r['start']})", f"{r['total'] / 12:.0f}", f"{r['vd']:.1f}%"))
+        y = table(s, col, y - 0.95, [("Cable", 0.45), ("Ckt", 0.45), ("Serves", 3.0), ("Type", 0.5), ("Breaker / GFCI", 1.85),
+                                     ("Truss", 0.5), ("Drop", 1.15), ("Feet", 0.45), ("V-drop", 0.6)],
+                  trows, size=6.5, rh=0.2, title=f"{pid}: CABLE SCHEDULE" + ("  (WORKING PLAN)" if elec["routing"].get("selected") == pid else ""))
+        mats = materials(rows)
+        s.text(col, y - 0.3, "Cable to buy (+10% waste): " + ",  ".join(f"{k} {int(-(-v * 1.1 // 5) * 5)} ft" for k, v in mats.items()),
+               size=7.5, bold=True, layer="NOTE")
+        s.text(col, y - 0.5, f"{len(rows)} home runs. V-drop = farthest box at 80% of the breaker, both ways on the cable "
+               f"(a balanced 3-wire cable drops about half).", size=6.5, color=GRAY, layer="NOTE")
+    # A vs B comparison
+    cmp_rows = []
+    stats = {}
+    for pid in ("A", "B"):
+        plan, rows = runs[pid]
+        m = materials(rows)
+        stats[pid] = dict(runs=len(rows), ccc=2 * len(rows), feet=sum(m.values()),
+                          p1=sum(1 for r in rows if not r["mwbc"]), p2=sum(1 for r in rows if r["mwbc"]),
+                          worst=max(len([r for r in rows if r["truss"] == t]) for t in {r["truss"] for r in rows}))
+    for label, key, f in (("Home runs", "runs", "{}"), ("Conductors counted on the S header", "ccc", "{}"),
+                          ("Cable, all sizes (ft, before waste)", "feet", "{:.0f}"), ("1-pole breakers", "p1", "{}"),
+                          ("2-pole common-trip breakers", "p2", "{}"), ("Most cables on one truss", "worst", "{}")):
+        cmp_rows.append((label, f.format(stats["A"][key]), f.format(stats["B"][key])))
+    y = table(s, 16.0, 7.2, [("", 3.2), ("Plan A", 1.0), ("Plan B", 1.0)], cmp_rows, size=7.5, title="PLAN A vs PLAN B")
+    for i, t in enumerate([
+            "Plan B pairs only circuits that already share boxes or run side by side (1+2, 4+6, 7+8, 11+12, 14+15).",
+            "Gains: 5 fewer home runs, fewer cables to space on the header, ~1/3 less cable, lower voltage drop when",
+            "the two legs are loaded evenly. Costs: 2-pole GFCI breakers, pigtailed neutrals, and both circuits go",
+            "dead together when you work on one. Use the 12/2 on hand for every single-circuit run either way."]):
+        s.text(16.0, y - 0.3 - i * 0.18, t, size=7, layer="NOTE")
+    legend = [("tick2", "2-wire: hot, neutral, ground"), ("tick3", "3-wire: 2 hots, shared neutral, ground"),
+              ("cable", "Thick line = 3-wire shared-neutral cable")]
+    notes = [
+        "1. Lengths: panel slack 24in, 8in each box end, panel",
+        "   top to S header, header, truss, top plate, drop.",
+        "   Box-to-box links: run + height change + slack.",
+        "2. Every 3-wire (multiwire) cable: 2-pole common-trip",
+        "   breaker on opposite legs (NEC 210.4(B)); pigtail",
+        "   the neutral in every box (300.13(B)); group and",
+        "   tag both hots with their neutral (210.4(D)).",
+        "3. GFCI on a 3-wire cable: a 2-pole GFCI breaker, or",
+        "   GFCI receptacles fed LINE side only with pigtailed",
+        "   neutrals. Single-pole GFCI breakers + handle tie do",
+        "   not work on a shared neutral. Ask the inspector.",
+        "4. GFCI per the schedule: GFCI receptacles where the",
+        "   box is reachable; GFCI breakers for 10, 11, 12 (boxes",
+        "   behind the TV / console). K4 disposal half: GFCI rec.",
+        "5. No device here needs 3-wire by itself: all loads",
+        "   are 120V; the K5 switch loops work with 2-wire",
+        "   because the feed lands at the switch box first.",
+        "6. Circuit 17 (table lights) not routed yet.",
+        "7. Check the panel make: 2-pole GFCI breakers must",
+        "   match it (and fit the open slots).",
+    ]
+    title_block(s, "E4", "E4 - Wiring diagrams + cable schedules", layout, 0, scale="NTS (schematic)",
+                legend=legend, notes=notes)
     return s
 
 
@@ -672,12 +1018,16 @@ def main():
     warns = check(elec, wall, ctx)
     e1, _ = sheet_e1(shop, elec, inv, placements, wall, args.layout, warns)
     e2 = sheet_e2(elec, wall, args.layout, warns)
+    sheets = [e1, e2]
+    if elec.get("routing"):
+        runs = cable_runs(elec, wall, shop)
+        sheets += [sheet_e3(shop, elec, wall, args.layout, runs), sheet_e4(elec, wall, args.layout, runs)]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    write_pdf([e1, e2], out / "accent-wall.pdf")
-    write_svg(e1, out / "accent-wall-E1.svg")
-    write_svg(e2, out / "accent-wall-E2.svg")
-    write_dxf([e1, e2], out / "accent-wall.dxf")
+    write_pdf(sheets, out / "accent-wall.pdf")
+    for sh in sheets:
+        write_svg(sh, out / f"accent-wall-{sh.name}.svg")
+    write_dxf(sheets, out / "accent-wall.dxf")
     for w in warns:
         print("WARN", w)
     print(f"wrote {out}/accent-wall.pdf, -E1.svg, -E2.svg, .dxf ({len(warns)} warning(s))")

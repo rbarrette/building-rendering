@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lighting.schema.json",
+  "title": "lighting plan (data/lighting.json)",
+  "type": "object",
+  "required": ["meta", "fixture_types", "controls", "existing", "layers", "table_packages", "plans", "scenes"],
+  "additionalProperties": false,
+  "$defs": {
+    "xyz": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+    "rgb": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 3, "maxItems": 3},
+    "level": {
+      "oneOf": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "object", "additionalProperties": false, "required": ["f"],
+         "properties": {"f": {"type": "number", "minimum": 0, "maximum": 1}, "cct": {"type": "number", "minimum": 1500, "maximum": 10000},
+                        "rgb": {"$ref": "#/$defs/rgb"}, "anim": {"enum": ["flicker", "pulse_slow", "pulse_fast", "sweep"]},
+                        "seat_colors": {"type": "boolean"}}}
+      ]
+    },
+    "head": {
+      "type": "object", "required": ["mount", "aim", "cct"], "additionalProperties": false,
+      "properties": {"tag": {"type": "string"}, "mount": {"$ref": "#/$defs/xyz"}, "aim": {"$ref": "#/$defs/xyz"}, "cct": {"type": "number"}}
+    }
+  },
+  "properties": {
+    "meta": {
+      "type": "object", "required": ["default_plan", "default_scene"],
+      "properties": {"description": {"type": "string"}, "updated": {"type": "string"}, "default_plan": {"type": "string"},
+                     "default_scene": {"type": "string"}, "fields": {"type": "object"}}
+    },
+    "fixture_types": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["name", "lm", "radius", "dia", "len", "cct"],
+        "properties": {
+          "name": {"type": "string"}, "lm": {"type": "number", "exclusiveMinimum": 0}, "beam": {"type": "number"},
+          "peak": {"type": ["number", "null"]}, "in_beam": {"type": "number"}, "profile": {"enum": ["cosine", "gauss"]},
+          "radius": {"type": "number"}, "dia": {"type": "number"}, "len": {"type": "number"}, "cct": {"type": "number"},
+          "cct_mode": {"enum": ["switch", "fixed"]}, "louver_cutoff": {"type": "number"}, "louver_trans": {"type": "number"},
+          "flag": {"type": "string"}, "role": {"type": "string"}, "status": {"enum": ["existing", "candidate", "chosen", "rejected"]},
+          "url": {"type": "string"}, "note": {"type": "string"}
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "kind"], "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"}, "kind": {"enum": ["dimmer", "switch", "relay", "dmx", "app"]}, "brand": {"type": ["string", "null"]},
+          "model": {"type": ["string", "null"]}, "status": {"enum": ["installed", "planned", "idea"]},
+          "controls": {"type": "array", "items": {"type": "string"}}, "circuit": {"type": ["integer", "null"]}, "note": {"type": "string"}
+        }
+      }
+    },
+    "existing": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "fixture", "shop_ref", "layer"], "additionalProperties": false,
+        "properties": {"id": {"type": "string"}, "fixture": {"type": "string"}, "shop_ref": {"type": "string"}, "layer": {"type": "string"},
+                       "control": {"type": ["string", "null"]}, "status": {"enum": ["installed", "removed"]}, "note": {"type": "string"}}
+      }
+    },
+    "layers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["name", "kind"],
+        "properties": {
+          "name": {"type": "string"}, "kind": {"enum": ["existing", "table", "strip", "puck_grid", "spots", "golf"]},
+          "control": {"type": "string"}, "circuit": {"type": "integer"}, "fixture": {"type": "string"}, "note": {"type": "string"},
+          "lm_per_ft": {"type": "number"}, "cct": {"type": "number"}, "normal": {"$ref": "#/$defs/xyz"},
+          "runs": {"type": "array", "items": {"type": "object", "required": ["p0", "p1"], "additionalProperties": false,
+                                              "properties": {"p0": {"$ref": "#/$defs/xyz"}, "p1": {"$ref": "#/$defs/xyz"}}}},
+          "columns": {"type": "array", "items": {"type": "object", "required": ["x"], "properties": {"chord": {"type": "string"}, "x": {"type": "number"}}}},
+          "spacing": {"type": "number", "exclusiveMinimum": 0}, "y0": {"type": "number"}, "y1": {"type": "number"}, "z": {"type": "number"},
+          "spots": {"type": "array", "items": {"type": "object", "required": ["mount", "aim"], "additionalProperties": false,
+                                               "properties": {"mount": {"$ref": "#/$defs/xyz"}, "aim": {"$ref": "#/$defs/xyz"}}}}
+        },
+        "allOf": [
+          {"if": {"properties": {"kind": {"const": "strip"}}}, "then": {"required": ["lm_per_ft", "cct", "runs", "normal"]}},
+          {"if": {"properties": {"kind": {"const": "puck_grid"}}}, "then": {"required": ["fixture", "columns", "spacing", "y0", "y1", "z"]}},
+          {"if": {"properties": {"kind": {"const": "spots"}}}, "then": {"required": ["fixture", "spots"]}}
+        ]
+      }
+    },
+    "table_packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["fixture", "heads", "cost_usd", "ccts"],
+        "properties": {"name": {"type": "string"}, "fixture": {"type": "string"}, "heads": {"type": "integer", "minimum": 1},
+                       "cost_usd": {"type": "number"}, "ccts": {"type": "array", "items": {"type": "number"}}, "louver": {"type": "boolean"},
+                       "note": {"type": "string"}}
+      }
+    },
+    "plans": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["name", "layers"],
+        "properties": {
+          "name": {"type": "string"}, "description": {"type": "string"},
+          "layers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "table": {
+            "type": "object", "required": ["package", "item", "cases"],
+            "properties": {
+              "package": {"type": "string"}, "item": {"type": "string"}, "opener": {"enum": ["jackshaft", "trolley"]},
+              "door": {"enum": ["open", "closed"]}, "heads_from": {"enum": ["optimiser", "manual"]},
+              "cases": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object", "required": ["table_center", "rot", "heads"],
+                  "properties": {"table_center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+                                 "rot": {"type": "number"}, "dim": {"type": "number", "minimum": 0, "maximum": 1},
+                                 "heads": {"type": "array", "items": {"$ref": "#/$defs/head"}}}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scenes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["name", "levels"], "additionalProperties": false,
+        "properties": {"name": {"type": "string"}, "levels": {"type": "object", "additionalProperties": {"$ref": "#/$defs/level"}},
+                       "ev": {"type": "number"}, "haze": {"type": "boolean"}, "note": {"type": "string"}}
+      }
+    }
+  }
+}

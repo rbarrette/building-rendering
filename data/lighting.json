@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "description": "Lighting plan (example garage): fixture catalogue, existing fixtures and their controls, planned layers, named plans and scenes. Space frame, inches (x east from the W wall, y north from the S wall, z up from the slab). Read by build_scene.py / render.py (drawn and lit per layout), validate.py and, if you adapt it, extras/lighting/lighting.py.",
+    "updated": "2026-11-25",
+    "default_plan": "workshop",
+    "default_scene": "work",
+    "fields": {
+      "fixture_types": "lm = catalogue lumens, beam = degrees, peak = candela (null: estimated from lm and beam), radius = lens radius in METRES (Cycles soft shadows), dia/len = housing inches, cct = kelvin",
+      "existing": "installed fixtures; their positions live in data/space.json ceiling_items (shop_ref = that item's id)",
+      "layers": "kind existing | table | strip | puck_grid | spots | golf; strips: lm_per_ft along p0-p1, normal = the way they shine",
+      "scenes": "levels per layer: 0-1, or {f, cct, rgb}; ev = exposure offset for night renders"
+    }
+  },
+  "fixture_types": {
+    "SHOP4": {
+      "name": "4 ft LED shop light (example)",
+      "lm": 5000,
+      "profile": "cosine",
+      "radius": 0.05,
+      "dia": 8.0,
+      "len": 3.0,
+      "cct": 5000,
+      "role": "general (existing)",
+      "status": "existing"
+    },
+    "SPOT": {
+      "name": "LED track spot, 36 deg (example)",
+      "lm": 900,
+      "beam": 36,
+      "peak": null,
+      "radius": 0.02,
+      "dia": 3.0,
+      "len": 5.0,
+      "cct": 3000,
+      "role": "task (workbench)",
+      "status": "candidate"
+    }
+  },
+  "controls": [
+    {
+      "id": "SW-1",
+      "kind": "switch",
+      "brand": null,
+      "model": null,
+      "status": "installed",
+      "controls": ["CL-1", "CL-2"],
+      "note": "example: the wall switch by the house door"
+    },
+    {
+      "id": "DIM-BENCH",
+      "kind": "dimmer",
+      "brand": "(any)",
+      "model": "0-10V or phase dimmer to match the track heads",
+      "status": "planned",
+      "note": "example: one dimmer for the bench spots and strip"
+    }
+  ],
+  "existing": [
+    {
+      "id": "CL-1",
+      "fixture": "SHOP4",
+      "shop_ref": "CL-1",
+      "layer": "CEIL",
+      "control": "SW-1",
+      "status": "installed"
+    },
+    {
+      "id": "CL-2",
+      "fixture": "SHOP4",
+      "shop_ref": "CL-2",
+      "layer": "CEIL",
+      "control": "SW-1",
+      "status": "installed"
+    }
+  ],
+  "layers": {
+    "CEIL": {
+      "name": "Existing ceiling lights",
+      "kind": "existing",
+      "control": "SW-1"
+    },
+    "BENCH": {
+      "name": "Track spots over the workbench",
+      "kind": "spots",
+      "fixture": "SPOT",
+      "control": "DIM-BENCH",
+      "spots": [
+        {
+          "mount": [216, 250, 104],
+          "aim": [222, 268, 36]
+        },
+        {
+          "mount": [240, 250, 104],
+          "aim": [240, 268, 36]
+        },
+        {
+          "mount": [264, 250, 104],
+          "aim": [258, 268, 36]
+        }
+      ]
+    },
+    "STRIP": {
+      "name": "LED strip under the pegboard shelf",
+      "kind": "strip",
+      "control": "DIM-BENCH",
+      "lm_per_ft": 450,
+      "cct": 4000,
+      "runs": [
+        {
+          "p0": [214, 284, 60],
+          "p1": [266, 284, 60]
+        }
+      ],
+      "normal": [0, -0.707, -0.707]
+    }
+  },
+  "table_packages": {},
+  "plans": {
+    "existing": {
+      "name": "As installed",
+      "layers": ["CEIL"]
+    },
+    "workshop": {
+      "name": "Add bench task lighting",
+      "description": "Existing shop lights plus three dimmable track spots and a strip over the workbench.",
+      "layers": ["CEIL", "BENCH", "STRIP"]
+    }
+  },
+  "scenes": {
+    "work": {
+      "name": "Work",
+      "levels": {
+        "CEIL": 1.0,
+        "BENCH": 1.0,
+        "STRIP": 1.0
+      },
+      "ev": 0.0
+    },
+    "evening": {
+      "name": "Evening",
+      "levels": {
+        "CEIL": 0.0,
+        "BENCH": {
+          "f": 0.5,
+          "cct": 2700
+        },
+        "STRIP": 0.4
+      },
+      "ev": 1.0
+    }
+  }
+}

@@ -29,7 +29,7 @@ Each layout option is a separate JSON file of item placements: a new layout mean
 - **Measurement surface:** <what the tape hits: drywall / stud / trim / foam; expected +/- tolerance>.
 
 ## Layout of the repo
-`data/` (space.json, inventory.json, placement-rules.json, schema/) - `layouts/` - `measurements/raw/` (verbatim dated
+`data/` (space.json, inventory.json, placement-rules.json, lighting.json (optional), schema/) - `layouts/` - `measurements/raw/` (verbatim dated
 field notes, never edited) - `measurements/processed/` - `scripts/` - `prompts/` - `reference/` (photos, scans, specs,
 items/<id>/) - `assets/items/<id>/` - `blend/` and `renders/` (build outputs, never hand-edited) - `extras/` (optional studies).
 Make targets: `setup validate build render photo scan-views asset-import asset-preview scan-import splat-mesh scan-todo all clean`

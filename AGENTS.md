@@ -24,6 +24,8 @@ Step by step in `prompts/session-handoff.md` (Claude Code: `/handoff [topic]`).
 - Large binaries (renders, .blend files, scans) stay out of `.agents/`. Reference them by path.
 - If HANDOFF.md disagrees with the code or data, trust the code and fix HANDOFF.md.
 - `data/space.json` is the single source of truth. `measurements/raw/` is verbatim field notes; never edit it.
+- Lighting (fixtures, existing lights and dimmers, plans, scenes) lives in `data/lighting.json` (optional); positions of
+  installed lights stay in `data/space.json` `ceiling_items`. Layouts pick a plan with `"lighting": {"plan", "scene"}`.
 
 ## Reusable prompts
 - `prompts/inventory-ingest.md`: research one item (dims, clearances, pictures, textures), add it to `data/inventory.json`,
@@ -43,3 +45,7 @@ Step by step in `prompts/session-handoff.md` (Claude Code: `/handoff [topic]`).
 ## Starting a new project from the template
 If `.agents/HANDOFF.md` says the project is fresh from the template, follow `START-HERE.md` first.
 Human walkthrough: `docs/GUIDE.md`; checklist: `docs/WORKPLAN.md`; design: `docs/ARCHITECTURE.md`.
+
+## Other AI tools
+Not Claude Code? `docs/AGENT-TOOLS.md` says how each tool loads these rules, how to run the `prompts/` without slash
+commands, and how to hand off between tools (or run two at once).

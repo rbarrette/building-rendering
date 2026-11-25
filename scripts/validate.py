@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as C  # noqa: E402
+import lighting_plan as LP  # noqa: E402
 
 issues = []
 
@@ -673,13 +674,103 @@ def main():
         paths = []
     else:
         paths = sorted((C.ROOT / "layouts").glob("*.json"))
+    light = check_lighting(shop)
     for p in paths:
         raw = C.load_raw(p)
         check_schema(raw, "layout.schema.json", f"layouts/{p.name}")
         if not any(i[0] == "ERROR" and p.name in i[2] for i in issues):
             check_layout(shop, inv, raw, f"layouts/{p.name}")
             check_rules(shop, inv, rules, raw, f"layouts/{p.name}")
+            check_layout_lighting(shop, light, raw, f"layouts/{p.name}")
     return report()
+
+
+# ---------------------------------------------------------------------- lighting
+def check_lighting(shop, label="lighting.json"):
+    """data/lighting.json: schema, cross-references to space.json / electrical.json, head clearances. Returns the data or None."""
+    if not LP.PATH.exists():
+        return None
+    raw = C.load_raw(LP.PATH)
+    n0 = sum(i[0] == "ERROR" for i in issues)
+    check_schema(raw, "lighting.schema.json", label)
+    if sum(i[0] == "ERROR" for i in issues) > n0:
+        return None
+    d = raw
+    fx, layers, plans = d["fixture_types"], d["layers"], d["plans"]
+    ceiling = {it["id"]: it for it in shop["ceiling_items"]}
+    controls = {c["id"]: c for c in d["controls"]}
+    ep = C.ROOT / "data" / "electrical.json"
+    circuits = {c.get("n") for c in C.load_raw(ep).get("circuits", [])} if ep.exists() else set()
+    existing = {e["id"]: e for e in d["existing"]}
+
+    def need(kind, ref, pool, where):
+        if ref is not None and ref not in pool:
+            add("ERROR", "lighting-ref", f"{label}: {where} refers to unknown {kind} '{ref}'")
+    for k in ("default_plan",):
+        need("plan", d["meta"][k], plans, "meta." + k)
+    need("scene", d["meta"]["default_scene"], d["scenes"], "meta.default_scene")
+    for e in d["existing"]:
+        need("space.json ceiling item", e["shop_ref"], ceiling, f"existing {e['id']}")
+        need("fixture type", e["fixture"], fx, f"existing {e['id']}")
+        need("layer", e["layer"], layers, f"existing {e['id']}")
+        need("control", e.get("control"), controls, f"existing {e['id']}")
+        it = ceiling.get(e["shop_ref"], {})
+        if it.get("todo") or it.get("confidence") == "estimated":
+            add("WARN", "lighting-todo", f"{label}: {e['id']} position in space.json is a placeholder ({it.get('confidence', '?')}); tape it")
+    for c in d["controls"]:
+        if circuits:
+            need("electrical.json circuit", c.get("circuit"), circuits, f"control {c['id']}")
+        for t in c.get("controls", []):
+            need("existing fixture", t, existing, f"control {c['id']}")
+        if c.get("status") != "installed" and not c.get("model"):
+            add("WARN", "lighting-todo", f"{label}: control {c['id']} ({c.get('brand') or c['kind']}) has no model yet")
+    for lid, lay in layers.items():
+        need("fixture type", lay.get("fixture"), fx, f"layer {lid}")
+        need("control", lay.get("control"), controls, f"layer {lid}")
+        if circuits:
+            need("electrical.json circuit", lay.get("circuit"), circuits, f"layer {lid}")
+    for k, pk in d["table_packages"].items():
+        need("fixture type", pk["fixture"], fx, f"table package {k}")
+        if len(pk["ccts"]) != pk["heads"]:
+            add("ERROR", "lighting-package", f"{label}: table package {k} has {pk['heads']} heads but {len(pk['ccts'])} ccts")
+    fans = [it for it in shop["ceiling_items"] if it.get("type") == "fan"]
+    for pid, pl in plans.items():
+        for lid in pl["layers"]:
+            need("layer", lid, layers, f"plan {pid}")
+        tb = pl.get("table")
+        if not tb:
+            continue
+        need("table package", tb["package"], d["table_packages"], f"plan {pid}")
+        pk = d["table_packages"].get(tb["package"])
+        for cid, case in tb["cases"].items():
+            if pk and len(case["heads"]) != pk["heads"]:
+                add("WARN", "lighting-heads", f"{label}: plan {pid} case {cid} has {len(case['heads'])} heads, package {tb['package']} has {pk['heads']}")
+            for h in case["heads"]:
+                x, y = h["mount"][:2]
+                for f in fans:
+                    if math.hypot(x - f["x"], y - f["y"]) < f["w"] / 2 + 6:
+                        add("WARN", "lighting-clear", f"{label}: plan {pid} case {cid} head {h.get('tag', '?')} at ({x:.0f}, {y:.0f}) is inside {f['id']}'s blade circle")
+    for sid, sc in d["scenes"].items():
+        for lid in sc["levels"]:
+            need("layer", lid, layers, f"scene {sid}")
+    return d
+
+
+def check_layout_lighting(shop, d, layout, label):
+    lc = layout.get("lighting")
+    if d is None or not lc:
+        return
+    plan, scene = lc.get("plan"), lc.get("scene")
+    if plan and plan not in d["plans"]:
+        add("ERROR", "lighting-ref", f"{label}: lighting.plan '{plan}' isn't in data/lighting.json ({', '.join(d['plans'])})")
+        return
+    if scene and scene not in d["scenes"]:
+        add("ERROR", "lighting-ref", f"{label}: lighting.scene '{scene}' isn't in data/lighting.json")
+    plan = plan or d["meta"]["default_plan"]
+    if d["plans"][plan].get("table"):
+        cid, _, msg = LP.table_case(d, plan, layout)
+        if cid is None:
+            add("WARN", "lighting-stale", f"{label}: lighting plan '{plan}': {msg}")
 
 
 def report():

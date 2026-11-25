@@ -18,6 +18,7 @@ from mathutils import Matrix, Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common as C  # noqa: E402
 import assets as A  # noqa: E402
+import lighting_plan as LP  # noqa: E402
 
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 
@@ -594,12 +595,16 @@ def build_interior_walls(shop, coll):
                 vw = vb.get("w", bw)
                 trim(vb["x"] - vw / 2.0, vb["x"] + vw / 2.0, vb["z0"], vb["z1"], bd)
             if trim_boxes:
+                tm = casing_m if tr.get("color") == "white" else m  # bathroom trim is white; accent battens match the paint
                 base_tb = [b for b in trim_boxes if b[0].z < 83.0]
                 hdr_tb = [b for b in trim_boxes if b[0].z >= 83.0]
                 if base_tb:
-                    make_obj(f"TRIM_{iw['id']}", coll, base_tb, m)
+                    make_obj(f"TRIM_{iw['id']}", coll, base_tb, tm)
                 if hdr_tb:
-                    make_obj(f"TRIM_{iw['id']}_hdr", coll, hdr_tb, m)
+                    make_obj(f"TRIM_{iw['id']}_hdr", coll, hdr_tb, tm)
+            # flat door leaves applied to the face (closed doors that are not wall openings, e.g. a closet door)
+            for dl in tr.get("door_leaves", []):
+                build_door_leaf(f"LEAF_{iw['id']}_{dl['id']}", dl, coll, face_o, u, n_out, door_m)
 
             casing_boxes, casing_hdr = [], []
             for dc in tr.get("door_casings", []):
@@ -630,6 +635,92 @@ def build_interior_walls(shop, coll):
             make_obj(f"DOOR_{iw['id']}_{o['id']}", coll, [(leaf_o, u, n_out, Z, o["w"] + 4, 1.5, o["h"] + 2)], door_m)
             trk_o = p + u * lo + face + n_out * 0.75 + Z * (o["h"] + 2.75)
             make_obj(f"TRACK_{iw['id']}_{o['id']}", coll, [(trk_o, u, n_out, Z, hi - lo, 1.5, 1.75)], track_m)
+
+
+def build_door_leaf(name, dl, coll, face_o, u, n_out, door_m):
+    """A closed door drawn on a wall face (space.json trim.door_leaves). x0/x1 are offsets along the wall, z0/z1 heights.
+
+    style "flat" (default): a slab, split into `panels` (or at `splits` z) by thin gaps.
+    style "panel": slab + raised moulding beads around each `panels` entry [z0, z1, arch_rise] (arched top when rise > 0)
+                   inside `stile`-wide stiles.
+    style "rails": slab + raised horizontal rails at `rails` z (a rail with `curve` > 0 dips at its centre), between stiles.
+    Optional `handle` {"side": "left"|"right", "z"} (black lever) and `hinges` {"side", "z": [...]} (exposed knuckles).
+    """
+    x0, x1, z0, z1, d = dl["x0"], dl["x1"], dl["z0"], dl["z1"], dl.get("depth", 0.5)
+    w, style = x1 - x0, dl.get("style", "flat")
+    at = lambda a, z, out=0.0: face_o + u * a + Z * z + n_out * out  # point on the face, `out` in front of it
+    if style == "flat":
+        gap, k = 0.375, max(int(dl.get("panels", 1)), 1)
+        edges = [z0] + sorted(dl.get("splits") or [z0 + (z1 - z0) * i / k for i in range(1, k)]) + [z1]
+        boxes = [(at(x0, lo + (gap / 2 if i else 0)), u, n_out, Z, w, d,
+                  hi - lo - (gap / 2 if i else 0) - (gap / 2 if i < len(edges) - 2 else 0))
+                 for i, (lo, hi) in enumerate(zip(edges, edges[1:]))]
+        make_obj(name, coll, boxes, door_m)
+    else:
+        boxes = [(at(x0, z0), u, n_out, Z, w, d, z1 - z0)]  # leaf slab
+        st, bw, bp = dl.get("stile", 4.5), dl.get("bead", 0.75), dl.get("bead_proud", 0.3)
+
+        def seg(a0, za, a1, zb, thick):  # bead from (a0, za) to (a1, zb) in the face plane, `thick` across it
+            dvec = u * (a1 - a0) + Z * (zb - za)
+            ln = dvec.length
+            ex = dvec / ln
+            ez = n_out.cross(ex).normalized()  # in-plane, perpendicular to the bead
+            if ez.dot(Z) < 0:
+                ez = -ez
+            boxes.append((at(a0, za, d) - ez * (thick / 2), ex, n_out, ez, ln, bp, thick))
+
+        def arc(a0, a1, zc, rise, thick, n=12, down=False):  # shallow circular arc through both ends and the mid rise
+            half = (a1 - a0) / 2
+            r = (half ** 2 + rise ** 2) / (2 * rise)
+            mid = (a0 + a1) / 2
+            pts = []
+            for i in range(n + 1):
+                a = a0 + (a1 - a0) * i / n
+                h = math.sqrt(max(r * r - (a - mid) ** 2, 0)) - (r - rise)
+                pts.append((a, zc - h if down else zc + h))
+            for (pa, pz), (qa, qz) in zip(pts, pts[1:]):
+                seg(pa, pz, qa, qz, thick)
+
+        if style == "panel":
+            for p0, p1, rise in [(p + [0])[:3] for p in dl.get("panels", [])]:
+                a0, a1 = x0 + st, x1 - st
+                seg(a0, p0 + bw / 2, a1, p0 + bw / 2, bw)  # bottom
+                seg(a0 + bw / 2, p0, a0 + bw / 2, p1, bw)  # sides
+                seg(a1 - bw / 2, p0, a1 - bw / 2, p1, bw)
+                if rise > 0:
+                    arc(a0, a1, p1 - bw / 2, rise, bw)
+                else:
+                    seg(a0, p1 - bw / 2, a1, p1 - bw / 2, bw)
+        elif style == "rails":
+            sl, sr, rh = dl.get("stile_left", 1.25), dl.get("stile_right", 2.5), dl.get("rail", 1.5)
+            boxes.append((at(x0, z0, d), u, n_out, Z, sl, bp, z1 - z0))  # stiles proud of the slab
+            boxes.append((at(x1 - sr, z0, d), u, n_out, Z, sr, bp, z1 - z0))
+            for r in dl.get("rails", []):
+                rz, curve = (r, 0) if isinstance(r, (int, float)) else (r[0], r[1])
+                if curve > 0:
+                    arc(x0 + sl, x1 - sr, rz, curve, rh, down=True)
+                else:
+                    seg(x0 + sl, rz, x1 - sr, rz, rh)
+        make_obj(name, coll, boxes, door_m)
+
+    hw = []
+    hd = dl.get("handle")
+    if hd:  # lever: round rose + handle pointing at the hinge side
+        right = hd.get("side", "right") == "right"
+        ac = x1 - 2.25 if right else x0 + 2.25
+        hz, out = hd.get("z", 36), d
+        hw.append((at(ac - 1.0, hz - 1.0, out), u, n_out, Z, 2.0, 0.5, 2.0))  # rose
+        hw.append((at(ac - 0.4, hz - 0.4, out + 0.5), u, n_out, Z, 0.8, 1.6, 0.8))  # neck
+        lv = 4.5
+        hw.append((at(ac - lv + 0.4 if right else ac - 0.4, hz - 0.35, out + 1.6), u, n_out, Z, lv, 0.55, 0.7))
+    if hw:
+        make_obj(name + "_handle", coll, hw, mat("door_lever_black", (0.03, 0.03, 0.03, 1), "black"))
+    hg = dl.get("hinges")
+    if hg:
+        right = hg.get("side", "right") == "right"
+        a = x1 - 0.5 if right else x0 - 0.5
+        make_obj(name + "_hinges", coll, [(at(a, z - 1.75, 0), u, n_out, Z, 1.0, d + 0.4, 3.5) for z in hg.get("z", [])],
+                 mat("hinge_nickel", (0.55, 0.56, 0.57, 1), "metal"))
 
 
 def tile_rects(shop, iw, side):
@@ -761,6 +852,72 @@ def build_ceiling_items(shop, coll):
                      material=mat("duct", (0.78, 0.78, 0.8, 1), "metal"))
             add_label(it["id"], it["x"], it["y"], it["z"] + it["h"] + 0.2, 5, 0, coll,
                       mat("label", (0.1, 0.1, 0.1, 1)), name=f"LBL_{it['id']}")
+
+
+def build_lighting(shop, layout, root):
+    """Every plan in data/lighting.json as a LIGHT_<plan> collection: housings (LT_*) plus Blender lights (LTL_*)
+    carrying plan/layer/fixture/cct/lm props for render.py. Only the layout's plan renders; render.py can switch."""
+    data = LP.load()
+    sel, _ = LP.layout_choice(data, layout)
+    fx = data["fixture_types"]
+    house = mat("lt_housing", (0.04, 0.04, 0.04, 1), "black")
+    chan = mat("lt_strip", (0.85, 0.85, 0.87, 1), "metal")
+    for pid in data["plans"]:
+        c = bpy.data.collections.new(f"LIGHT_{pid}")
+        root.children.link(c)
+        srcs, warn = LP.sources(data, shop, pid, layout)
+        for w in warn:
+            print("LIGHTING WARNING:", w)
+        for s in srcs:
+            nm = f"{pid}_{s['id']}"
+            lkind = data["layers"][s["layer"]]["kind"]
+            if s["kind"] == "spot":
+                f = fx[s["fixture"]]
+                pos, aim = Vector(s["pos"]), Vector(s["aim"])
+                d = (aim - pos).normalized()
+                q = d.to_track_quat("-Z", "Y")
+                if lkind != "existing":  # installed fixtures already have a body (their CI_* ceiling item)
+                    ob = make_obj(f"LT_{nm}", c, cyl=(0, 0, -f["len"] / 2, f["dia"] / 2, f["len"]), material=house)
+                    ob.location = pos
+                    ob.rotation_euler = q.to_euler()
+                ld = bpy.data.lights.new(f"LTL_{nm}", "SPOT")
+                ld.spot_size = math.radians(min(175.0, 160.0 if f.get("profile") == "cosine" else f.get("beam", 40) * 1.6))
+                ld.spot_blend = 0.9 if f.get("profile") == "cosine" else 0.6
+                ld.shadow_soft_size = max(f["radius"] / 0.0254, 0.5)
+                lo = bpy.data.objects.new(f"LTL_{nm}", ld)
+                c.objects.link(lo)
+                lo.location = pos + d * (f["len"] / 2 + 0.3 if lkind != "existing" else 0.5)
+                lo.rotation_euler = q.to_euler()
+                ld["peak_cd"] = LP.peak_cd(f)
+                ld["fixture"] = s["fixture"]
+            else:
+                p0, p1 = Vector(s["p0"]), Vector(s["p1"])
+                L = (p1 - p0).length
+                n = Vector(s["normal"]).normalized()
+                zl = -n
+                xl = (p1 - p0).normalized()
+                xl = (xl - zl * xl.dot(zl)).normalized()
+                Mx = Matrix((xl, zl.cross(xl), zl)).transposed().to_4x4()
+                Mx.translation = (p0 + p1) / 2
+                ch = make_obj(f"LT_{nm}", c, [(Vector((-L / 2, -0.5, 0.0)), X, Y, Z, L, 1.0, 0.5)], chan)
+                ch.matrix_world = Mx @ Matrix.Translation((0, 0, 0.05))
+                ld = bpy.data.lights.new(f"LTL_{nm}", "AREA")
+                ld.shape = "RECTANGLE"
+                ld.size, ld.size_y = L, 0.5
+                lo = bpy.data.objects.new(f"LTL_{nm}", ld)
+                c.objects.link(lo)
+                lo.matrix_world = Mx
+                ld["lm"] = s["lm"]
+            ld.energy = 0.0  # render.py sets it from the scene
+            for k in ("layer", "cct"):
+                ld[k] = s[k]
+            ld["plan"] = pid
+            if lkind == "table":
+                ld["package"] = data["plans"][pid]["table"]["package"]
+                ld["dim"] = s.get("dim", 1.0)
+        c.hide_render = pid != sel
+        c.hide_viewport = pid != sel
+    print(f"LIGHTING: {len(data['plans'])} plans drawn, '{sel}' visible")
 
 
 def front_boxes(fi, stile=2.25, proud=0.6, kick=4.0):
@@ -1102,7 +1259,7 @@ def main():
     scene.world.color = (0.93, 0.94, 0.96)
 
     colls = {}
-    for cname in ("Shell", "Fixed", "Inventory", "Clearances", "Reference"):
+    for cname in ("Shell", "Fixed", "Inventory", "Clearances", "Reference", "Lighting"):
         colls[cname] = bpy.data.collections.new(cname)
         scene.collection.children.link(colls[cname])
 
@@ -1116,6 +1273,8 @@ def main():
         build_scans(shop, colls["Reference"])
     if layout:
         build_inventory(shop, inv, layout, colls["Inventory"], colls["Clearances"], not args.no_assets)
+    if LP.PATH.exists():  # data/lighting.json is optional
+        build_lighting(shop, layout, colls["Lighting"])
 
     out = C.ROOT / "blend" / f"{name}.blend"
     out.parent.mkdir(exist_ok=True)

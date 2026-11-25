@@ -44,6 +44,22 @@
           }
         }
       }
+    },
+    "lighting": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Lighting plan to draw and light for this layout (ids from data/lighting.json plans / scenes)",
+      "properties": {
+        "plan": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
     }
   }
 }

@@ -33,10 +33,11 @@ The agent will check your setup, render the example, interview you about your sp
 | [docs/GUIDE.md](docs/GUIDE.md) | **The walkthrough for humans**: what you need, each step, how to work with the agent, lessons learned. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | Phased checklist with "done when" for each phase. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it's built: data model, ingestion paths, validator, render pipeline, agent memory. |
-| `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `.agents/` | Shared memory for AI agents (works across tools and sessions). |
+| `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTEXT.md`, `.agents/` | Shared memory for AI agents (works across tools and sessions). |
+| [docs/AGENT-TOOLS.md](docs/AGENT-TOOLS.md) | Using Codex, Cursor, Gemini, Antigravity and others alongside (or instead of) Claude Code; handoffs between tools. |
 | `prompts/` | Reusable, tool-neutral prompts: ingest an item, placement rules, layout changes, 3D assets, item scans, handoff. |
 | `.claude/commands/` | Claude Code slash commands that wrap the prompts (`/ingest-item`, `/layout`, ...). |
-| `data/` | `space.json` (the room), `inventory.json` (things), `placement-rules.json` (your preferences), JSON schemas. **Example data: replace it.** |
+| `data/` | `space.json` (the room), `inventory.json` (things), `placement-rules.json` (your preferences), optional `lighting.json` (fixtures, plans, scenes), JSON schemas. **Example data: replace it.** |
 | `layouts/` | One JSON file per layout option. |
 | `scripts/` | Validator (plain Python) and Blender scripts (scene build, renders, scan views, asset tools). |
 | `measurements/`, `reference/`, `assets/` | Field notes (raw and processed), photos/scans/spec sheets, per-item 3D assets. |
@@ -48,6 +49,8 @@ make setup                      # one-time: .venv with jsonschema
 make validate                   # schema + geometry + rule + walkability checks
 make render LAYOUT=option-a     # build blend/option-a.blend and render plan/iso/eye views to renders/option-a/
 make photo LAYOUT=option-a      # textured + lit renders (EEVEE; ENGINE=cycles for path tracing)
+make photo LAYOUT=option-a LIGHTING=workshop SCENE=evening   # night render of a lighting plan -> renders/option-a/lighting/
+make lighting-options           # every layout x lighting plan x scene at night (PLANS=.. SCENES=.. LIGHT_VIEWS=..)
 ```
 Set the Blender path at the top of the `Makefile` (or pass `BLENDER=/path/to/blender`).
 

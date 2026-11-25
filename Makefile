@@ -11,8 +11,18 @@ ASSETS  ?= 1
 ITEM    ?=
 # VERSION=<tag> optional version tag for renders/<layout>/versions/
 VERSION ?=
+# LIGHTING=<plan> SCENE=<scene> from data/lighting.json: photo renders that plan + scene at night
+# (renders/<layout>/lighting/<plan>__<scene>__<view>.png). LIGHTING alone just swaps the drawn fixtures.
+LIGHTING ?=
+SCENE    ?=
+# lighting-options: which plans / scenes / views to render for every layout
+PLANS        ?= $(shell $(PY) -c "import json;print(' '.join(json.load(open('data/lighting.json'))['plans']))" 2>/dev/null)
+SCENES       ?= $(shell $(PY) -c "import json;print(json.load(open('data/lighting.json'))['meta']['default_scene'])" 2>/dev/null)
+LIGHT_VIEWS  ?= iso,eye-north
+LIGHT_SCALE  ?= 50
 
 
+.PHONY: lighting-options
 .PHONY: setup validate build render photo scan-views asset-import asset-preview scan-import splat-mesh scan-todo all clean
 
 setup:
@@ -29,7 +39,15 @@ render: build
 	$(BLENDER) --background --python scripts/render.py -- --layout $(LB) $(if $(VERSION),--version $(VERSION),)
 
 photo: build  ## textured/lit renders (EEVEE) -> renders/<layout>/photo-*.png ; ENGINE=cycles for path tracing
-	$(BLENDER) --background --python scripts/render.py -- --layout $(LB) --look photo --engine $(or $(ENGINE),eevee) $(if $(VERSION),--version $(VERSION),)
+	$(BLENDER) --background --python scripts/render.py -- --layout $(LB) --look photo --engine $(or $(ENGINE),eevee) $(if $(VERSION),--version $(VERSION),) $(if $(LIGHTING),--lighting $(LIGHTING),) $(if $(SCENE),--scene $(SCENE),)
+
+lighting-options:  ## every layout x lighting plan x scene at night (EEVEE) -> renders/<layout>/lighting/
+	@for L in $(basename $(notdir $(wildcard layouts/*.json))); do \
+	  $(MAKE) build LAYOUT=$$L SCAN=0 || exit 1; \
+	  for P in $(PLANS); do for S in $(SCENES); do \
+	    $(BLENDER) --background --python scripts/render.py -- --layout $$L --look photo --lighting $$P --scene $$S --views $(LIGHT_VIEWS) --scale $(LIGHT_SCALE) || exit 1; \
+	  done; done; \
+	done
 
 scan-views:  ## plan halves + wall elevations of the LiDAR scan with grids -> renders/scan/
 	$(MAKE) build LAYOUT=none
